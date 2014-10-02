@@ -1,0 +1,326 @@
+
+
+#include "Util/GitDescription.h"
+//#include "Util/OSRMException.h"
+#include "Util/ProgramOptions.h"
+#include "Util/SimpleLogger.h"
+#include "Util/TimingUtil.h"
+#include "Util/FingerPrint.h"
+#include "DataStructures/Restriction.h"
+#include "DataStructures/ImportNode.h"
+#include "DataStructures/RangeTable.h"
+#include "typedefs.h"
+
+#include <vector>
+#include <map>
+#include <chrono>
+#include <fstream>
+#include <iostream>
+#include <pqxx/pqxx>
+#include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+
+struct Config {
+  std::string fileName;
+  std::string dbHost;
+  std::string dbUser;
+  std::string dbName;
+  std::string dbPass;
+  boost::filesystem::path ini;
+};
+
+struct Edge {
+  unsigned source;
+  unsigned target;
+  int length;
+  short dir;
+  int weight;
+  short type;
+  unsigned nameID;
+  bool is_roundabout;
+  bool ignore_in_grid;
+  bool is_access_restricted;
+  bool is_contra_flow;
+  bool is_split;
+};
+const unsigned int PACK_SIZE=1000;
+
+bool ParseArguments(int argc, char *argv[], Config& config)
+{
+  // declare a group of options that will be allowed only on command line
+  boost::program_options::options_description generic_options("Options");
+  generic_options.add_options()("version,v", "Show version")("help,h", "Show this help message")(
+      "config,c",
+      boost::program_options::value<boost::filesystem::path>(&config.ini)
+	  ->default_value("exporter.ini"),
+      "Path to a configuration file.");
+
+  // declare a group of options that will be allowed both on command line and in config file
+  boost::program_options::options_description config_options("Configuration");
+  config_options.add_options()(
+	"fileName,o",
+	boost::program_options::value<std::string>(&config.fileName),
+	"Outpup *.osrm filename"
+      )(
+	"dbHost,H",
+	boost::program_options::value<std::string>(&config.dbHost)->default_value("localhost"),
+	"PostrgeSQL host"
+      )(
+	"dbUser,u",
+	boost::program_options::value<std::string>(&config.dbUser)->default_value("postgres"),
+	"PostrgeSQL user"
+      )(
+	"dbPass,p",
+	boost::program_options::value<std::string>(&config.dbPass)->default_value("postgres"),
+	"PostrgeSQL password"
+      )(
+	"dbName,b",
+	boost::program_options::value<std::string>(&config.dbName),
+	"PostrgeSQL input database name"
+      );
+
+  // combine above options for parsing
+  boost::program_options::options_description cmdline_options;
+  cmdline_options.add(generic_options).add(config_options);
+
+  boost::program_options::options_description config_file_options;
+  config_file_options.add(config_options);
+
+  boost::program_options::options_description visible_options(
+      boost::filesystem::basename(argv[0]) + " [options]");
+  visible_options.add(generic_options).add(config_options);
+
+  // parse command line options
+  boost::program_options::variables_map option_variables;
+  boost::program_options::store(boost::program_options::command_line_parser(argc, argv)
+				    .options(cmdline_options)
+				    .run(),
+				option_variables);
+
+  if (option_variables.count("version"))
+  {
+      SimpleLogger().Write() << g_GIT_DESCRIPTION;
+      return false;
+  }
+
+  if (option_variables.count("help"))
+  {
+      SimpleLogger().Write() << visible_options;
+      return false;
+  }
+
+  boost::program_options::notify(option_variables);
+
+  // parse config file
+  if (boost::filesystem::is_regular_file(config.ini))
+  {
+      SimpleLogger().Write() << "Reading options from: " << config.ini.string();
+      std::string ini_file_contents = ReadIniFileAndLowerContents(config.ini);
+      std::stringstream config_stream(ini_file_contents);
+      boost::program_options::store(parse_config_file(config_stream, config_file_options),
+				    option_variables);
+      boost::program_options::notify(option_variables);
+  }
+
+  if (!option_variables.count("dbName") || !option_variables.count("fileName"))
+  {
+      SimpleLogger().Write() << visible_options;
+      return false;
+  }
+
+  return true;
+}
+
+int main (int argc, char *argv[])
+{
+  Config config;
+  const FingerPrint fingerprint;
+  std::vector<std::string> names_list;
+  std::map<std::string, unsigned int> string_map;
+  
+  LogPolicy::GetInstance().Unmute();
+  if(!ParseArguments(argc, argv, config))
+    return 0;
+  
+  std::string conStr("");
+  conStr.append(" dbname="   + config.dbName);
+  conStr.append(" host="     + config.dbHost);
+  conStr.append(" user="     + config.dbUser);
+  conStr.append(" password=" + config.dbPass);
+
+  std::shared_ptr<pqxx::connection> con;
+  try {
+      con = std::make_shared<pqxx::connection>(conStr);
+  } catch (const pqxx::sql_error &e) {
+      SimpleLogger().Write(logWARNING) << e.what();
+      return 1;
+  }
+  pqxx::work w(*con);
+        
+  unsigned nodes_count;
+  try {
+    nodes_count=w.exec("SELECT count(*) FROM nodes WHERE confirmed = true").front()[0].as< unsigned int >();
+  } catch (const std::exception &e) {
+    SimpleLogger().Write(logWARNING) << e.what();
+  } 
+  
+  std::ofstream file_out_stream;
+  file_out_stream.open(config.fileName.c_str(), std::ios::binary);
+  file_out_stream.write((char *)&fingerprint, sizeof(FingerPrint));
+  file_out_stream.write((char *)&nodes_count, sizeof(unsigned));
+  try {
+    SimpleLogger().Write() << "Fetching and writing nodes...";
+    TIMER_START(nodes_list);
+    auto query = "SELECT ID, "
+      "(ST_X(coord::geometry)*1e6)::int as lat, "
+      "(ST_Y(coord::geometry)*1e6)::int as lon, "
+      "trafficlight "
+      "FROM nodes "
+      "WHERE confirmed = true "
+      "ORDER BY ID";
+    pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
+    pqxx::result res;
+    while(cur>>res)
+      for(auto row : res)
+      {	
+	ImportNode node;
+	node.lon = row["lat"].as< int >();
+	node.lat = row["lon"].as< int >();
+	node.node_id = row["ID"].as< unsigned int >();
+	node.bollard = 0;
+	node.trafficLight = row["trafficlight"].as< bool >();
+	file_out_stream.write((char *)&(node), sizeof(ExternalMemoryNode));
+      }
+    TIMER_STOP(nodes_list);
+    SimpleLogger().Write() << "ok after " << TIMER_SEC(nodes_list) << "s";
+  } catch (const std::exception &e) {
+    SimpleLogger().Write(logWARNING) << e.what();
+  }  
+  
+  
+  
+  unsigned edges_count;
+  try {
+    edges_count=w.exec("SELECT count(*) FROM edges WHERE confirmed = true").front()[0].as< unsigned int >();
+  } catch (const std::exception &e) {
+    SimpleLogger().Write(logWARNING) << e.what();
+  } 
+  
+  file_out_stream.write((char *)&edges_count, sizeof(unsigned));
+  try {
+    SimpleLogger().Write() << "Fetching and writing edges...";
+    TIMER_START(edges_list);
+    auto query = "SELECT srcID, trgID, "
+      "forward, backward, "
+      "splitted, streetname, speed, "
+      "ST_Distance(s.coord, t.coord)::int length, "
+      "(ST_Distance(s.coord, t.coord)/(speed/3.6)*10)::int weight "
+      "FROM edges e "
+      "INNER JOIN nodes s on srcID=s.ID "
+      "INNER JOIN nodes t on trgID=t.ID "
+      "WHERE e.confirmed = true "
+      "AND speed>0 "
+      "AND (forward or backward) "
+      "AND ST_Distance(s.coord, t.coord)>0 "
+      "ORDER BY srcID";
+    pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
+    pqxx::result res;
+    while(cur>>res)
+      for(auto row : res)
+      {	
+	Edge edge;
+	edge.source = row["srcID"].as< unsigned int >();
+	edge.target = row["trgID"].as< unsigned int >();
+	edge.length = std::max(1, row["length"].as< int >());
+	edge.dir = row["forward"].as< bool >() ? row["forward"].as< bool >()!=row["backward"].as< bool >() : 2;
+	edge.weight = std::max(1, row["weight"].as< int >());
+	edge.type = 0;
+	edge.is_roundabout = 0;
+	edge.ignore_in_grid = 0;
+	edge.is_access_restricted = 0;
+	edge.is_contra_flow = 0;
+	edge.is_split = row["splitted"].as< bool >();
+	
+	// Get the unique identifier for the street name
+	auto name = row["streetname"].as< std::string >();
+	const auto &string_map_iterator = string_map.find(name);
+	if (string_map.end() == string_map_iterator)
+	{
+	  edge.nameID = names_list.size();
+	  names_list.push_back(name);
+	  string_map.insert(std::make_pair(name, edge.nameID));
+	}
+	else
+	  edge.nameID = string_map_iterator->second;
+	
+	file_out_stream.write((char *)&(edge), sizeof(Edge));
+      }
+    TIMER_STOP(edges_list);
+    SimpleLogger().Write() << "ok after " << TIMER_SEC(edges_list) << "s";
+  } catch (const std::exception &e) {
+    SimpleLogger().Write(logWARNING) << e.what();
+  }  
+  file_out_stream.close();
+  
+  
+  
+  unsigned turns_count;
+  try {
+    turns_count=w.exec("SELECT count(*) FROM turns WHERE confirmed = true").front()[0].as< unsigned int >();
+  } catch (const std::exception &e) {
+    SimpleLogger().Write(logWARNING) << e.what();
+  } 
+  
+  std::ofstream restrictions_out_stream;
+  restrictions_out_stream.open((config.fileName+".restrictions").c_str(), std::ios::binary);
+  restrictions_out_stream.write((char *)&fingerprint, sizeof(FingerPrint));
+  restrictions_out_stream.write((char *)&turns_count, sizeof(unsigned));
+  try {
+    SimpleLogger().Write() << "Fetching and writing turns...";
+    TIMER_START(turns_list);
+    auto query = "SELECT srcID, viaID, trgID "
+      "FROM turns "
+      "WHERE confirmed = true "
+      "ORDER BY srcID";
+    pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
+    pqxx::result res;
+    while(cur>>res)
+      for(auto row : res)
+      {	
+	TurnRestriction turn;
+	turn.fromNode = row["srcID"].as< unsigned int >();
+	turn.viaNode = row["viaID"].as< unsigned int >();
+	turn.toNode = row["trgID"].as< unsigned int >();
+	restrictions_out_stream.write((char *)&(turn), sizeof(TurnRestriction));
+      }
+    TIMER_STOP(turns_list);
+    SimpleLogger().Write() << "ok after " << TIMER_SEC(turns_list) << "s";
+  } catch (const std::exception &e) {
+    SimpleLogger().Write(logWARNING) << e.what();
+  }  
+  restrictions_out_stream.close();
+  
+  boost::filesystem::ofstream name_file_stream(config.fileName+".names", std::ios::binary);
+  unsigned total_length = 0;
+  std::vector<unsigned> name_lengths;
+  SimpleLogger().Write() << "Writing names...";
+  TIMER_START(write_names_list);
+  for (const std::string &temp_string : names_list)
+  {
+      const unsigned string_length = std::min(static_cast<unsigned>(temp_string.length()), 255u);
+      name_lengths.push_back(string_length);
+      total_length += string_length;
+  }
+  RangeTable<> table(name_lengths);
+  name_file_stream << table;
+  name_file_stream.write((char*) &total_length, sizeof(unsigned));
+  for (const std::string &temp_string : names_list)
+  {
+      const unsigned string_length = std::min(static_cast<unsigned>(temp_string.length()), 255u);
+      name_file_stream.write(temp_string.c_str(), string_length);
+  }
+  TIMER_STOP(write_names_list);
+  SimpleLogger().Write() << "ok after " << TIMER_SEC(write_names_list) << "s";
+  name_file_stream.close();
+}

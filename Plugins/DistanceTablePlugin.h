@@ -64,6 +64,7 @@ template <class DataFacadeT> class DistanceTablePlugin : public BasePlugin
 
     void HandleRequest(const RouteParameters &route_parameters, http::Reply &reply)
     {
+        TIMER_START(request);
         // check number of parameters
         if (2 > route_parameters.coordinates.size())
         {
@@ -90,7 +91,7 @@ template <class DataFacadeT> class DistanceTablePlugin : public BasePlugin
 
         const bool checksum_OK = (route_parameters.check_sum == raw_route.check_sum);
         unsigned max_locations =
-            std::min(100u, static_cast<unsigned>(raw_route.raw_via_node_coordinates.size()));
+            std::min(1000u, static_cast<unsigned>(raw_route.raw_via_node_coordinates.size()));
         PhantomNodeArray phantom_node_vector(max_locations);
         for (unsigned i = 0; i < max_locations; ++i)
         {
@@ -113,10 +114,11 @@ template <class DataFacadeT> class DistanceTablePlugin : public BasePlugin
             BOOST_ASSERT(phantom_node_vector[i].front().isValid(facade->GetNumberOfNodes()));
         }
 
-        // TIMER_START(distance_table);
+        TIMER_START(distance_table);
         std::shared_ptr<std::vector<EdgeWeight>> result_table =
             search_engine_ptr->distance_table(phantom_node_vector);
-        // TIMER_STOP(distance_table);
+        TIMER_STOP(distance_table);
+	SimpleLogger().Write() << "Calc time is " << TIMER_SEC(distance_table) << "s";
 
         if (!result_table)
         {
@@ -136,6 +138,8 @@ template <class DataFacadeT> class DistanceTablePlugin : public BasePlugin
         }
         json_object.values["distance_table"] = json_array;
         JSON::render(reply.content, json_object);
+        TIMER_STOP(request);
+	SimpleLogger().Write() << "Request processing time is " << TIMER_SEC(request) << "s";
     }
 
   private:
