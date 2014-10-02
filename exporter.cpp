@@ -9,6 +9,7 @@
 #include "DataStructures/Restriction.h"
 #include "DataStructures/ImportNode.h"
 #include "DataStructures/RangeTable.h"
+#include "DataStructures/Percent.h"
 #include "typedefs.h"
 
 #include <vector>
@@ -159,31 +160,57 @@ int main (int argc, char *argv[])
   pqxx::work w(*con);
         
   unsigned nodes_count;
+  unsigned edges_count;
+  unsigned turns_count;
+  SimpleLogger().Write() << "Fetching counts...";
+  TIMER_START(counts);
   try {
-    nodes_count=w.exec("SELECT count(*) FROM nodes WHERE confirmed = true").front()[0].as< unsigned int >();
+    nodes_count=w.exec("SELECT count(*) FROM nodes WHERE confirmed").front()[0].as< unsigned int >();
+  } catch (const std::exception &e) {
+    SimpleLogger().Write(logWARNING) << e.what();
+  }   
+  try {
+    edges_count=w.exec("SELECT count(*) FROM edges e "
+      "INNER JOIN nodes s on srcID=s.ID "
+      "INNER JOIN nodes t on trgID=t.ID "
+      "WHERE e.confirmed AND speed>0 AND (forward or backward) "
+      "AND ST_Distance(s.coord, t.coord)>0").front()[0].as< unsigned int >();
   } catch (const std::exception &e) {
     SimpleLogger().Write(logWARNING) << e.what();
   } 
+  try {
+    turns_count=w.exec("SELECT count(*) FROM turns WHERE confirmed").front()[0].as< unsigned int >();
+  } catch (const std::exception &e) {
+    SimpleLogger().Write(logWARNING) << e.what();
+  } 
+  TIMER_STOP(counts);
+  SimpleLogger().Write() << "ok after " << TIMER_SEC(counts) << "s";
+  SimpleLogger().Write() << "Nodes: " << nodes_count;
+  SimpleLogger().Write() << "Edges: " << edges_count;
+  SimpleLogger().Write() << "Turns: " << turns_count;
+  Percent progress(nodes_count+edges_count+turns_count);
   
+  
+  SimpleLogger().Write() << "Fetching and writing files...";
+  TIMER_START(write);
   std::ofstream file_out_stream;
   file_out_stream.open(config.fileName.c_str(), std::ios::binary);
   file_out_stream.write((char *)&fingerprint, sizeof(FingerPrint));
   file_out_stream.write((char *)&nodes_count, sizeof(unsigned));
   try {
-    SimpleLogger().Write() << "Fetching and writing nodes...";
-    TIMER_START(nodes_list);
     auto query = "SELECT ID, "
       "(ST_X(coord::geometry)*1e6)::int as lat, "
       "(ST_Y(coord::geometry)*1e6)::int as lon, "
       "trafficlight "
       "FROM nodes "
-      "WHERE confirmed = true "
+      "WHERE confirmed "
       "ORDER BY ID";
     pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
     pqxx::result res;
     while(cur>>res)
       for(auto row : res)
       {	
+	progress.printIncrement();
 	ImportNode node;
 	node.lon = row["lat"].as< int >();
 	node.lat = row["lon"].as< int >();
@@ -192,25 +219,13 @@ int main (int argc, char *argv[])
 	node.trafficLight = row["trafficlight"].as< bool >();
 	file_out_stream.write((char *)&(node), sizeof(ExternalMemoryNode));
       }
-    TIMER_STOP(nodes_list);
-    SimpleLogger().Write() << "ok after " << TIMER_SEC(nodes_list) << "s";
   } catch (const std::exception &e) {
     SimpleLogger().Write(logWARNING) << e.what();
-  }  
+  }   
   
-  
-  
-  unsigned edges_count;
-  try {
-    edges_count=w.exec("SELECT count(*) FROM edges WHERE confirmed = true").front()[0].as< unsigned int >();
-  } catch (const std::exception &e) {
-    SimpleLogger().Write(logWARNING) << e.what();
-  } 
   
   file_out_stream.write((char *)&edges_count, sizeof(unsigned));
   try {
-    SimpleLogger().Write() << "Fetching and writing edges...";
-    TIMER_START(edges_list);
     auto query = "SELECT srcID, trgID, "
       "forward, backward, "
       "splitted, streetname, speed, "
@@ -219,7 +234,7 @@ int main (int argc, char *argv[])
       "FROM edges e "
       "INNER JOIN nodes s on srcID=s.ID "
       "INNER JOIN nodes t on trgID=t.ID "
-      "WHERE e.confirmed = true "
+      "WHERE e.confirmed "
       "AND speed>0 "
       "AND (forward or backward) "
       "AND ST_Distance(s.coord, t.coord)>0 "
@@ -229,9 +244,10 @@ int main (int argc, char *argv[])
     while(cur>>res)
       for(auto row : res)
       {	
+	progress.printIncrement();
 	Edge edge;
-	edge.source = row["srcID"].as< unsigned int >();
-	edge.target = row["trgID"].as< unsigned int >();
+	edge.source = row["srcID"].as< unsigned >();
+	edge.target = row["trgID"].as< unsigned >();
 	edge.length = std::max(1, row["length"].as< int >());
 	edge.dir = row["forward"].as< bool >() ? row["forward"].as< bool >()!=row["backward"].as< bool >() : 2;
 	edge.weight = std::max(1, row["weight"].as< int >());
@@ -254,48 +270,47 @@ int main (int argc, char *argv[])
 	else
 	  edge.nameID = string_map_iterator->second;
 	
-	file_out_stream.write((char *)&(edge), sizeof(Edge));
+	//file_out_stream.write((char *)&(edge), sizeof(Edge));
+	file_out_stream.write((char *)&edge.source, sizeof(unsigned));
+	file_out_stream.write((char *)&edge.target, sizeof(unsigned));
+	file_out_stream.write((char *)&edge.length, sizeof(int));
+	file_out_stream.write((char *)&edge.dir, sizeof(short));
+	file_out_stream.write((char *)&edge.weight, sizeof(int));
+	file_out_stream.write((char *)&edge.type, sizeof(short));
+	file_out_stream.write((char *)&edge.nameID, sizeof(unsigned));
+	file_out_stream.write((char *)&edge.is_roundabout, sizeof(bool));
+	file_out_stream.write((char *)&edge.ignore_in_grid, sizeof(bool));
+	file_out_stream.write((char *)&edge.is_access_restricted, sizeof(bool));
+	file_out_stream.write((char *)&edge.is_contra_flow, sizeof(bool));
+	file_out_stream.write((char *)&edge.is_split, sizeof(bool));
       }
-    TIMER_STOP(edges_list);
-    SimpleLogger().Write() << "ok after " << TIMER_SEC(edges_list) << "s";
   } catch (const std::exception &e) {
     SimpleLogger().Write(logWARNING) << e.what();
   }  
   file_out_stream.close();
   
   
-  
-  unsigned turns_count;
-  try {
-    turns_count=w.exec("SELECT count(*) FROM turns WHERE confirmed = true").front()[0].as< unsigned int >();
-  } catch (const std::exception &e) {
-    SimpleLogger().Write(logWARNING) << e.what();
-  } 
-  
   std::ofstream restrictions_out_stream;
   restrictions_out_stream.open((config.fileName+".restrictions").c_str(), std::ios::binary);
   restrictions_out_stream.write((char *)&fingerprint, sizeof(FingerPrint));
   restrictions_out_stream.write((char *)&turns_count, sizeof(unsigned));
   try {
-    SimpleLogger().Write() << "Fetching and writing turns...";
-    TIMER_START(turns_list);
     auto query = "SELECT srcID, viaID, trgID "
       "FROM turns "
-      "WHERE confirmed = true "
+      "WHERE confirmed "
       "ORDER BY srcID";
     pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
     pqxx::result res;
     while(cur>>res)
-      for(auto row : res)
+      for(auto row : res)			
       {	
+	progress.printIncrement();
 	TurnRestriction turn;
 	turn.fromNode = row["srcID"].as< unsigned int >();
 	turn.viaNode = row["viaID"].as< unsigned int >();
 	turn.toNode = row["trgID"].as< unsigned int >();
 	restrictions_out_stream.write((char *)&(turn), sizeof(TurnRestriction));
       }
-    TIMER_STOP(turns_list);
-    SimpleLogger().Write() << "ok after " << TIMER_SEC(turns_list) << "s";
   } catch (const std::exception &e) {
     SimpleLogger().Write(logWARNING) << e.what();
   }  
@@ -304,8 +319,6 @@ int main (int argc, char *argv[])
   boost::filesystem::ofstream name_file_stream(config.fileName+".names", std::ios::binary);
   unsigned total_length = 0;
   std::vector<unsigned> name_lengths;
-  SimpleLogger().Write() << "Writing names...";
-  TIMER_START(write_names_list);
   for (const std::string &temp_string : names_list)
   {
       const unsigned string_length = std::min(static_cast<unsigned>(temp_string.length()), 255u);
@@ -320,7 +333,8 @@ int main (int argc, char *argv[])
       const unsigned string_length = std::min(static_cast<unsigned>(temp_string.length()), 255u);
       name_file_stream.write(temp_string.c_str(), string_length);
   }
-  TIMER_STOP(write_names_list);
-  SimpleLogger().Write() << "ok after " << TIMER_SEC(write_names_list) << "s";
   name_file_stream.close();
+  
+  TIMER_STOP(write);
+  SimpleLogger().Write() << "ok after " << TIMER_SEC(write) << "s";
 }

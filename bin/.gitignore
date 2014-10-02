@@ -3,3 +3,4 @@
 /osrm-prepare
 /osrm-routed
 /osrm-exporter
+*.osrm*
