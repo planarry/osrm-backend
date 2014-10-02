@@ -1,7 +1,6 @@
 
 
 #include "Util/GitDescription.h"
-//#include "Util/OSRMException.h"
 #include "Util/ProgramOptions.h"
 #include "Util/SimpleLogger.h"
 #include "Util/TimingUtil.h"
@@ -270,7 +269,6 @@ int main (int argc, char *argv[])
 	else
 	  edge.nameID = string_map_iterator->second;
 	
-	//file_out_stream.write((char *)&(edge), sizeof(Edge));
 	file_out_stream.write((char *)&edge.source, sizeof(unsigned));
 	file_out_stream.write((char *)&edge.target, sizeof(unsigned));
 	file_out_stream.write((char *)&edge.length, sizeof(int));
