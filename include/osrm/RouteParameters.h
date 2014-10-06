@@ -68,6 +68,10 @@ struct RouteParameters
     void setCompressionFlag(const bool flag);
 
     void addCoordinate(const boost::fusion::vector<double, double> &coordinates);
+    void addFirstCoordinate(const boost::fusion::vector<double, double> &coordinates);
+    void addLastCoordinate(const boost::fusion::vector<double, double> &coordinates);
+    
+    void addTransportRestriction(const int restr);
 
     short zoom_level;
     bool print_instructions;
@@ -76,6 +80,7 @@ struct RouteParameters
     bool compression;
     bool deprecatedAPI;
     bool uturn_default;
+    bool is_last_loc_set;
     unsigned check_sum;
     std::string service;
     std::string output_format;

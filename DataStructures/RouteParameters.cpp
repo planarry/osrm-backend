@@ -33,7 +33,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 RouteParameters::RouteParameters()
     : zoom_level(18), print_instructions(false), alternate_route(true), geometry(true),
-      compression(true), deprecatedAPI(false), uturn_default(false), check_sum(-1)
+      compression(true), deprecatedAPI(false), uturn_default(false), check_sum(-1), 
+      is_last_loc_set(false)
 {
 }
 
@@ -103,7 +104,31 @@ void RouteParameters::setCompressionFlag(const bool flag) { compression = flag; 
 void
 RouteParameters::addCoordinate(const boost::fusion::vector<double, double> &transmitted_coordinates)
 {
+    if(is_last_loc_set)
+      coordinates.emplace(--coordinates.end(),
+        static_cast<int>(COORDINATE_PRECISION * boost::fusion::at_c<0>(transmitted_coordinates)),
+        static_cast<int>(COORDINATE_PRECISION * boost::fusion::at_c<1>(transmitted_coordinates)));
+    else
+      coordinates.emplace_back(
+        static_cast<int>(COORDINATE_PRECISION * boost::fusion::at_c<0>(transmitted_coordinates)),
+        static_cast<int>(COORDINATE_PRECISION * boost::fusion::at_c<1>(transmitted_coordinates)));
+}
+void
+RouteParameters::addFirstCoordinate(const boost::fusion::vector<double, double> &transmitted_coordinates)
+{
+    coordinates.emplace(coordinates.begin(),
+        static_cast<int>(COORDINATE_PRECISION * boost::fusion::at_c<0>(transmitted_coordinates)),
+        static_cast<int>(COORDINATE_PRECISION * boost::fusion::at_c<1>(transmitted_coordinates)));
+}
+void
+RouteParameters::addLastCoordinate(const boost::fusion::vector<double, double> &transmitted_coordinates)
+{
+    is_last_loc_set=true;
     coordinates.emplace_back(
         static_cast<int>(COORDINATE_PRECISION * boost::fusion::at_c<0>(transmitted_coordinates)),
         static_cast<int>(COORDINATE_PRECISION * boost::fusion::at_c<1>(transmitted_coordinates)));
+}
+void
+RouteParameters::addTransportRestriction(const int restr)
+{
 }

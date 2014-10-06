@@ -40,7 +40,7 @@ struct APIGrammar : qi::grammar<Iterator>
     explicit APIGrammar(HandlerT * h) : APIGrammar::base_type(api_call), handler(h)
     {
         api_call = qi::lit('/') >> string[boost::bind(&HandlerT::setService, handler, ::_1)] >> *(query) >> -(uturns);
-        query    = ('?') >> (+(zoom | output | jsonp | checksum | location | hint | u | cmp | language | instruction | geometry | alt_route | old_API));
+        query    = ('?') >> (+(zoom | output | jsonp | checksum | location | locationS | locationD | hint | u | cmp | language | instruction | geometry | alt_route | old_API | transport | transports | points));
 
         zoom        = (-qi::lit('&')) >> qi::lit('z')            >> '=' >> qi::short_[boost::bind(&HandlerT::setZoomLevel, handler, ::_1)];
         output      = (-qi::lit('&')) >> qi::lit("output")       >> '=' >> string[boost::bind(&HandlerT::setOutputFormat, handler, ::_1)];
@@ -49,7 +49,12 @@ struct APIGrammar : qi::grammar<Iterator>
         instruction = (-qi::lit('&')) >> qi::lit("instructions") >> '=' >> qi::bool_[boost::bind(&HandlerT::setInstructionFlag, handler, ::_1)];
         geometry    = (-qi::lit('&')) >> qi::lit("geometry")     >> '=' >> qi::bool_[boost::bind(&HandlerT::setGeometryFlag, handler, ::_1)];
         cmp         = (-qi::lit('&')) >> qi::lit("compression")  >> '=' >> qi::bool_[boost::bind(&HandlerT::setCompressionFlag, handler, ::_1)];
-        location    = (-qi::lit('&')) >> qi::lit("loc")          >> '=' >> (qi::double_ >> qi::lit(',') >> qi::double_)[boost::bind(&HandlerT::addCoordinate, handler, ::_1)];
+        transports  = (-qi::lit('&')) >> qi::lit("transports")   >> '=' >> +(qi::int_[boost::bind(&HandlerT::addTransportRestriction, handler, ::_1)] >> -qi::lit(';'));
+	transport   = (-qi::lit('&')) >> qi::lit("transport")    >> '=' >> qi::int_[boost::bind(&HandlerT::addTransportRestriction, handler, ::_1)];
+	points      = (-qi::lit('&')) >> qi::lit("points")       >> '=' >> +((qi::double_ >> qi::lit(',') >> qi::double_)[boost::bind(&HandlerT::addCoordinate, handler, ::_1)] >> -qi::lit(';'));
+        location    = (-qi::lit('&')) >> (qi::lit("loc")|"via")  >> '=' >> (qi::double_ >> qi::lit(',') >> qi::double_)[boost::bind(&HandlerT::addCoordinate, handler, ::_1)];
+        locationS   = (-qi::lit('&')) >> qi::lit("start")        >> '=' >> (qi::double_ >> qi::lit(',') >> qi::double_)[boost::bind(&HandlerT::addFirstCoordinate, handler, ::_1)];
+        locationD   = (-qi::lit('&')) >> qi::lit("dest")         >> '=' >> (qi::double_ >> qi::lit(',') >> qi::double_)[boost::bind(&HandlerT::addLastCoordinate, handler, ::_1)];
         hint        = (-qi::lit('&')) >> qi::lit("hint")         >> '=' >> stringwithDot[boost::bind(&HandlerT::addHint, handler, ::_1)];
         u           = (-qi::lit('&')) >> qi::lit("u")            >> '=' >> qi::bool_[boost::bind(&HandlerT::setUTurn, handler, ::_1)];
         uturns      = (-qi::lit('&')) >> qi::lit("uturns")       >> '=' >> qi::bool_[boost::bind(&HandlerT::setAllUTurns, handler, ::_1)];
@@ -60,12 +65,13 @@ struct APIGrammar : qi::grammar<Iterator>
         string            = +(qi::char_("a-zA-Z"));
         stringwithDot     = +(qi::char_("a-zA-Z0-9_.-"));
         stringwithPercent = +(qi::char_("a-zA-Z0-9_.-") | qi::char_('[') | qi::char_(']') | (qi::char_('%') >> qi::char_("0-9A-Z") >> qi::char_("0-9A-Z") ));
+	//transportset      = ();
     }
 
     qi::rule<Iterator> api_call, query;
-    qi::rule<Iterator, std::string()> service, zoom, output, string, jsonp, checksum, location, hint,
+    qi::rule<Iterator, std::string()> service, zoom, output, string, jsonp, checksum, location, locationS, locationD, hint,
                                       stringwithDot, stringwithPercent, language, instruction, geometry,
-                                      cmp, alt_route, u, uturns, old_API ;
+                                      cmp, alt_route, u, uturns, old_API, transport, transportset, transports, points;
 
     HandlerT * handler;
 };

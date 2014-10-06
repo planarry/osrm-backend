@@ -157,6 +157,7 @@ int main (int argc, char *argv[])
       return 1;
   }
   pqxx::work w(*con);
+  pqxx::result res;
         
   unsigned nodes_count;
   unsigned edges_count;
@@ -205,7 +206,6 @@ int main (int argc, char *argv[])
       "WHERE confirmed "
       "ORDER BY ID";
     pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
-    pqxx::result res;
     while(cur>>res)
       for(auto row : res)
       {	
@@ -239,7 +239,6 @@ int main (int argc, char *argv[])
       "AND ST_Distance(s.coord, t.coord)>0 "
       "ORDER BY srcID";
     pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
-    pqxx::result res;
     while(cur>>res)
       for(auto row : res)
       {	
@@ -298,7 +297,6 @@ int main (int argc, char *argv[])
       "WHERE confirmed "
       "ORDER BY srcID";
     pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
-    pqxx::result res;
     while(cur>>res)
       for(auto row : res)			
       {	
