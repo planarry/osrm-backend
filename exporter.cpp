@@ -43,6 +43,8 @@ struct Edge {
   bool is_access_restricted;
   bool is_contra_flow;
   bool is_split;
+  short maxload;
+  short maxheight;
 };
 const unsigned int PACK_SIZE=1000;
 
@@ -229,7 +231,8 @@ int main (int argc, char *argv[])
       "forward, backward, "
       "splitted, streetname, speed, "
       "ST_Distance(s.coord, t.coord)::int length, "
-      "(ST_Distance(s.coord, t.coord)/(speed/3.6)*10)::int weight "
+      "(ST_Distance(s.coord, t.coord)/(speed/3.6)*10)::int weight, "
+      "coalesce(maxload,0) maxload, coalesce(maxheight*10, 0)::int maxheight "
       "FROM edges e "
       "INNER JOIN nodes s on srcID=s.ID "
       "INNER JOIN nodes t on trgID=t.ID "
@@ -255,6 +258,8 @@ int main (int argc, char *argv[])
 	edge.is_access_restricted = 0;
 	edge.is_contra_flow = 0;
 	edge.is_split = row["splitted"].as< bool >();
+	edge.maxload = row["maxload"].as< short >();
+	edge.maxheight = row["maxheight"].as< short >();
 	
 	// Get the unique identifier for the street name
 	auto name = row["streetname"].as< std::string >();
@@ -280,6 +285,8 @@ int main (int argc, char *argv[])
 	file_out_stream.write((char *)&edge.is_access_restricted, sizeof(bool));
 	file_out_stream.write((char *)&edge.is_contra_flow, sizeof(bool));
 	file_out_stream.write((char *)&edge.is_split, sizeof(bool));
+	file_out_stream.write((char *)&edge.maxload, sizeof(short));
+	file_out_stream.write((char *)&edge.maxheight, sizeof(short));
       }
   } catch (const std::exception &e) {
     SimpleLogger().Write(logWARNING) << e.what();

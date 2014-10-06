@@ -126,7 +126,7 @@ NodeID readBinaryOSRMGraphFromStream(std::istream &input_stream,
 
     edge_list.reserve(m);
     EdgeWeight weight;
-    short type;
+    short type, maxload, maxheight;
     NodeID nameID;
     int length;
     bool is_roundabout, ignore_in_grid, is_access_restricted, is_contra_flow, is_split;
@@ -145,6 +145,8 @@ NodeID readBinaryOSRMGraphFromStream(std::istream &input_stream,
         input_stream.read((char *)&is_access_restricted, sizeof(bool));
         input_stream.read((char *)&is_contra_flow, sizeof(bool));
         input_stream.read((char *)&is_split, sizeof(bool));
+        input_stream.read((char *)&maxload, sizeof(short));
+        input_stream.read((char *)&maxheight, sizeof(short));
 
         BOOST_ASSERT_MSG(length > 0, "loaded null length edge");
         BOOST_ASSERT_MSG(weight > 0, "loaded null weight");
@@ -201,7 +203,9 @@ NodeID readBinaryOSRMGraphFromStream(std::istream &input_stream,
                                ignore_in_grid,
                                is_access_restricted,
                                is_contra_flow,
-                               is_split);
+                               is_split,
+			       maxload,
+			       maxheight);
     }
 
     tbb::parallel_sort(edge_list.begin(), edge_list.end());

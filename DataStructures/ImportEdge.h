@@ -45,7 +45,9 @@ struct NodeBasedEdge
                            bool in_tiny_cc,
                            bool access_restricted,
                            bool contra_flow,
-                           bool is_split);
+                           bool is_split,
+                           short maxload,
+                           short maxheight);
 
     NodeID source;
     NodeID target;
@@ -59,6 +61,8 @@ struct NodeBasedEdge
     bool access_restricted : 1;
     bool contra_flow : 1;
     bool is_split : 1;
+    short maxload;
+    short maxheight;
 
     NodeBasedEdge() = delete;
 };
