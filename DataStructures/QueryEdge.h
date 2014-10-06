@@ -51,6 +51,9 @@ struct QueryEdge
         int distance : 30;
         bool forward : 1;
         bool backward : 1;
+        int length : 30;
+        short maxload : 8;
+        short maxheight : 6;
     } data;
 
     QueryEdge() : source(SPECIAL_NODEID), target(SPECIAL_NODEID) {}
