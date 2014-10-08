@@ -93,6 +93,26 @@ JSON::Value DescriptionFactory::AppendEncodedPolylineString(const bool return_en
     return polyline_compressor.printUnencodedString(path_description);
 }
 
+JSON::Array DescriptionFactory::AppendEncodedPolylineSplitedString(const bool return_encoded)
+{
+    JSON::Array ret;
+    std::vector<SegmentInformation> leg_path_description;
+    for(const auto &segment : path_description)
+    {
+      leg_path_description.push_back(segment);
+      if(segment.is_via_location)
+      {
+        if (return_encoded)
+          ret.values.push_back(polyline_compressor.printEncodedString(leg_path_description));
+        else
+          ret.values.push_back(polyline_compressor.printUnencodedString(leg_path_description));
+	leg_path_description.clear();
+	leg_path_description.push_back(segment);
+      }
+    }
+    return ret;
+}
+
 void DescriptionFactory::BuildRouteSummary(const double distance, const unsigned time)
 {
     summary.source_name_id = start_phantom.name_id;

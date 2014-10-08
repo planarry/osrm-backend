@@ -138,6 +138,9 @@ template <class DataFacadeT> class JSONDescriptor : public BaseDescriptor<DataFa
             JSON::Value route_geometry =
                 description_factory.AppendEncodedPolylineString(config.encode_geometry);
             json_result.values["route_geometry"] = route_geometry;
+            JSON::Value route_geometry_splited =
+                description_factory.AppendEncodedPolylineSplitedString(config.encode_geometry);
+            json_result.values["route_geometry_splited"] = route_geometry_splited;
         }
         if (config.instructions)
         {
