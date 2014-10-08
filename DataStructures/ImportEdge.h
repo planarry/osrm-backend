@@ -46,6 +46,7 @@ struct NodeBasedEdge
                            bool access_restricted,
                            bool contra_flow,
                            bool is_split,
+                           int length,
                            short maxload,
                            short maxheight);
 
@@ -61,6 +62,7 @@ struct NodeBasedEdge
     bool access_restricted : 1;
     bool contra_flow : 1;
     bool is_split : 1;
+    int length;
     short maxload;
     short maxheight;
 
@@ -82,13 +84,19 @@ struct EdgeBasedEdge
                            const NodeID edge_id,
                            const EdgeWeight weight,
                            const bool forward,
-                           const bool backward);
+                           const bool backward,
+                           int length,
+                           short maxload,
+                           short maxheight);
     NodeID source;
     NodeID target;
     NodeID edge_id;
     EdgeWeight weight : 30;
     bool forward : 1;
     bool backward : 1;
+    int length;
+    short maxload;
+    short maxheight;
 };
 
 typedef NodeBasedEdge ImportEdge;

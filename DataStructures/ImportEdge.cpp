@@ -58,12 +58,13 @@ NodeBasedEdge::NodeBasedEdge(NodeID source,
                              bool access_restricted,
                              bool contra_flow,
                              bool is_split,
+                             int length,
                              short maxload,
                              short maxheight)
     : source(source), target(target), name_id(name_id), weight(weight), type(type),
       forward(forward), backward(backward), roundabout(roundabout), in_tiny_cc(in_tiny_cc),
       access_restricted(access_restricted), contra_flow(contra_flow), is_split(is_split), 
-      maxload(maxload), maxheight(maxheight)
+      length(length), maxload(maxload), maxheight(maxheight)
 {
     BOOST_ASSERT_MSG(type > 0, "negative edge type");
 }
@@ -103,8 +104,11 @@ EdgeBasedEdge::EdgeBasedEdge(const NodeID source,
                              const NodeID edge_id,
                              const EdgeWeight weight,
                              const bool forward,
-                             const bool backward)
+                             const bool backward,
+                             int length,
+                             short maxload,
+                             short maxheight)
     : source(source), target(target), edge_id(edge_id), weight(weight), forward(forward),
-      backward(backward)
+      backward(backward), length(length), maxload(maxload), maxheight(maxheight)
 {
 }

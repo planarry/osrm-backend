@@ -40,6 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/assert.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/concept_check.hpp>
 
 #include <tbb/parallel_sort.h>
 
@@ -204,8 +205,9 @@ NodeID readBinaryOSRMGraphFromStream(std::istream &input_stream,
                                is_access_restricted,
                                is_contra_flow,
                                is_split,
-			       maxload,
-			       maxheight);
+                               length,
+                               maxload,
+                               maxheight);
     }
 
     tbb::parallel_sort(edge_list.begin(), edge_list.end());

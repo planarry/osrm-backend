@@ -118,7 +118,7 @@ template <class DataFacadeT> class DistanceTablePlugin : public BasePlugin
         std::shared_ptr<std::vector<EdgeWeight>> result_table =
             search_engine_ptr->distance_table(phantom_node_vector);
         TIMER_STOP(distance_table);
-	SimpleLogger().Write() << "Calc time is " << TIMER_SEC(distance_table) << "s";
+        SimpleLogger().Write() << "Calc time is " << TIMER_SEC(distance_table) << "s";
 
         if (!result_table)
         {
@@ -139,7 +139,7 @@ template <class DataFacadeT> class DistanceTablePlugin : public BasePlugin
         json_object.values["distance_table"] = json_array;
         JSON::render(reply.content, json_object);
         TIMER_STOP(request);
-	SimpleLogger().Write() << "Request processing time is " << TIMER_SEC(request) << "s";
+        SimpleLogger().Write() << "Request processing time is " << TIMER_SEC(request) << "s";
     }
 
   private:

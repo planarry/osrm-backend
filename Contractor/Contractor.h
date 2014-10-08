@@ -69,10 +69,13 @@ class Contractor
                            unsigned id,
                            bool shortcut,
                            bool forward,
-                           bool backward)
+                           bool backward,
+                           int length,
+                           short maxload,
+                           short maxheight)
             : distance(distance), id(id),
               originalEdges(std::min((unsigned)1 << 28, original_edges)), shortcut(shortcut),
-              forward(forward), backward(backward), is_original_via_node_ID(false)
+              forward(forward), backward(backward), is_original_via_node_ID(false), length(length), maxload(maxload), maxheight(maxheight)
         {
         }
         unsigned distance;
@@ -82,6 +85,9 @@ class Contractor
         bool forward : 1;
         bool backward : 1;
         bool is_original_via_node_ID : 1;
+        int length;
+        short maxload;
+        short maxheight;
     } data;
 
     struct ContractorHeapData
@@ -178,7 +184,10 @@ class Contractor
                 diter->edge_id,
                 false,
                 diter->forward ? true : false,
-                diter->backward ? true : false);
+                diter->backward ? true : false,
+                diter->length,
+                diter->maxload,
+                diter->maxheight);
 
             edges.emplace_back(diter->target, diter->source,
                 static_cast<unsigned int>(std::max(diter->weight, 1)),
@@ -186,7 +195,10 @@ class Contractor
                 diter->edge_id,
                 false,
                 diter->backward ? true : false,
-                diter->forward ? true : false);
+                diter->forward ? true : false,
+                diter->length,
+                diter->maxload,
+                diter->maxheight);
         }
         // clear input vector
         input_edge_list.clear();
@@ -593,6 +605,9 @@ class Contractor
                                      "edge id invalid");
                     new_edge.data.forward = data.forward;
                     new_edge.data.backward = data.backward;
+                    new_edge.data.length = data.length;
+                    new_edge.data.maxload = data.maxload;
+                    new_edge.data.maxheight = data.maxheight;
                     edges.push_back(new_edge);
                 }
             }
@@ -779,14 +794,20 @@ class Contractor
                                                     node,
                                                     true,
                                                     true,
-                                                    false);
+                                                    false,
+                                                    in_data.length + out_data.length,
+                                                    std::min(in_data.maxload, out_data.maxload),
+                                                    std::min(in_data.maxheight, out_data.maxheight));
 
                         inserted_edges.emplace_back(target, source, path_distance,
                                                     out_data.originalEdges + in_data.originalEdges,
                                                     node,
                                                     true,
                                                     false,
-                                                    true);
+                                                    true,
+                                                    in_data.length + out_data.length,
+                                                    std::min(in_data.maxload, out_data.maxload),
+                                                    std::min(in_data.maxheight, out_data.maxheight));
                     }
                 }
             }

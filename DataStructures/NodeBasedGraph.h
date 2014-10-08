@@ -30,6 +30,9 @@ struct NodeBasedEdgeData
     bool roundabout : 1;
     bool ignore_in_grid : 1;
     bool contraFlow : 1;
+    int length;
+    short maxload;
+    short maxheight;
 
     void SwapDirectionFlags()
     {
@@ -59,7 +62,7 @@ typedef DynamicGraph<SimpleEdgeData> SimpleNodeBasedDynamicGraph;
 inline std::shared_ptr<NodeBasedDynamicGraph>
 NodeBasedDynamicGraphFromImportEdges(int number_of_nodes, std::vector<ImportEdge> &input_edge_list)
 {
-    static_assert(sizeof(NodeBasedEdgeData) == 16, "changing node based edge data size changes memory consumption");
+    static_assert(sizeof(NodeBasedEdgeData) == 24, "changing node based edge data size changes memory consumption");
 
     DeallocatingVector<NodeBasedDynamicGraph::InputEdge> edges_list;
     NodeBasedDynamicGraph::InputEdge edge;
@@ -94,6 +97,9 @@ NodeBasedDynamicGraphFromImportEdges(int number_of_nodes, std::vector<ImportEdge
         edge.data.type = import_edge.type;
         edge.data.isAccessRestricted = import_edge.access_restricted;
         edge.data.contraFlow = import_edge.contra_flow;
+        edge.data.length = import_edge.length;
+        edge.data.maxload = import_edge.maxload;
+        edge.data.maxheight = import_edge.maxheight;
         edges_list.push_back(edge);
 
         if (!import_edge.is_split)
@@ -173,7 +179,7 @@ template<class SimpleEdgeT>
 inline std::shared_ptr<SimpleNodeBasedDynamicGraph>
 SimpleNodeBasedDynamicGraphFromEdges(int number_of_nodes, std::vector<SimpleEdgeT> &input_edge_list)
 {
-    static_assert(sizeof(NodeBasedEdgeData) == 16, "changing node based edge data size changes memory consumption");
+    static_assert(sizeof(NodeBasedEdgeData) == 24, "changing node based edge data size changes memory consumption");
     tbb::parallel_sort(input_edge_list.begin(), input_edge_list.end());
 
     DeallocatingVector<SimpleNodeBasedDynamicGraph::InputEdge> edges_list;

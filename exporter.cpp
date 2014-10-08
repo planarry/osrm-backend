@@ -55,31 +55,31 @@ bool ParseArguments(int argc, char *argv[], Config& config)
   generic_options.add_options()("version,v", "Show version")("help,h", "Show this help message")(
       "config,c",
       boost::program_options::value<boost::filesystem::path>(&config.ini)
-	  ->default_value("exporter.ini"),
+        ->default_value("exporter.ini"),
       "Path to a configuration file.");
 
   // declare a group of options that will be allowed both on command line and in config file
   boost::program_options::options_description config_options("Configuration");
   config_options.add_options()(
-	"fileName,o",
-	boost::program_options::value<std::string>(&config.fileName),
-	"Outpup *.osrm filename"
+        "fileName,o",
+        boost::program_options::value<std::string>(&config.fileName),
+        "Outpup *.osrm filename"
       )(
-	"dbHost,H",
-	boost::program_options::value<std::string>(&config.dbHost)->default_value("localhost"),
-	"PostrgeSQL host"
+        "dbHost,H",
+        boost::program_options::value<std::string>(&config.dbHost)->default_value("localhost"),
+        "PostrgeSQL host"
       )(
-	"dbUser,u",
-	boost::program_options::value<std::string>(&config.dbUser)->default_value("postgres"),
-	"PostrgeSQL user"
+        "dbUser,u",
+        boost::program_options::value<std::string>(&config.dbUser)->default_value("postgres"),
+        "PostrgeSQL user"
       )(
-	"dbPass,p",
-	boost::program_options::value<std::string>(&config.dbPass)->default_value("postgres"),
-	"PostrgeSQL password"
+        "dbPass,p",
+        boost::program_options::value<std::string>(&config.dbPass)->default_value("postgres"),
+        "PostrgeSQL password"
       )(
-	"dbName,b",
-	boost::program_options::value<std::string>(&config.dbName),
-	"PostrgeSQL input database name"
+        "dbName,b",
+        boost::program_options::value<std::string>(&config.dbName),
+        "PostrgeSQL input database name"
       );
 
   // combine above options for parsing
@@ -96,9 +96,9 @@ bool ParseArguments(int argc, char *argv[], Config& config)
   // parse command line options
   boost::program_options::variables_map option_variables;
   boost::program_options::store(boost::program_options::command_line_parser(argc, argv)
-				    .options(cmdline_options)
-				    .run(),
-				option_variables);
+                                    .options(cmdline_options)
+                                    .run(),
+                                option_variables);
 
   if (option_variables.count("version"))
   {
@@ -121,7 +121,7 @@ bool ParseArguments(int argc, char *argv[], Config& config)
       std::string ini_file_contents = ReadIniFileAndLowerContents(config.ini);
       std::stringstream config_stream(ini_file_contents);
       boost::program_options::store(parse_config_file(config_stream, config_file_options),
-				    option_variables);
+                                    option_variables);
       boost::program_options::notify(option_variables);
   }
 
@@ -210,15 +210,15 @@ int main (int argc, char *argv[])
     pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
     while(cur>>res)
       for(auto row : res)
-      {	
-	progress.printIncrement();
-	ImportNode node;
-	node.lon = row["lat"].as< int >();
-	node.lat = row["lon"].as< int >();
-	node.node_id = row["ID"].as< unsigned int >();
-	node.bollard = 0;
-	node.trafficLight = row["trafficlight"].as< bool >();
-	file_out_stream.write((char *)&(node), sizeof(ExternalMemoryNode));
+      {
+        progress.printIncrement();
+        ImportNode node;
+        node.lon = row["lat"].as< int >();
+        node.lat = row["lon"].as< int >();
+        node.node_id = row["ID"].as< unsigned int >();
+        node.bollard = 0;
+        node.trafficLight = row["trafficlight"].as< bool >();
+        file_out_stream.write((char *)&(node), sizeof(ExternalMemoryNode));
       }
   } catch (const std::exception &e) {
     SimpleLogger().Write(logWARNING) << e.what();
@@ -232,7 +232,8 @@ int main (int argc, char *argv[])
       "splitted, streetname, speed, "
       "ST_Distance(s.coord, t.coord)::int length, "
       "(ST_Distance(s.coord, t.coord)/(speed/3.6)*10)::int weight, "
-      "coalesce(maxload,0) maxload, coalesce(maxheight*10, 0)::int maxheight "
+      "coalesce(nullif(maxload,0)/100, 255)::int maxload, " //max 25500 kilograms
+      "coalesce(nullif(maxheight,0)*10, 63)::int maxheight " //max 6.3 meters height
       "FROM edges e "
       "INNER JOIN nodes s on srcID=s.ID "
       "INNER JOIN nodes t on trgID=t.ID "
@@ -244,49 +245,49 @@ int main (int argc, char *argv[])
     pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
     while(cur>>res)
       for(auto row : res)
-      {	
-	progress.printIncrement();
-	Edge edge;
-	edge.source = row["srcID"].as< unsigned >();
-	edge.target = row["trgID"].as< unsigned >();
-	edge.length = std::max(1, row["length"].as< int >());
-	edge.dir = row["forward"].as< bool >() ? row["forward"].as< bool >()!=row["backward"].as< bool >() : 2;
-	edge.weight = std::max(1, row["weight"].as< int >());
-	edge.type = 0;
-	edge.is_roundabout = 0;
-	edge.ignore_in_grid = 0;
-	edge.is_access_restricted = 0;
-	edge.is_contra_flow = 0;
-	edge.is_split = row["splitted"].as< bool >();
-	edge.maxload = row["maxload"].as< short >();
-	edge.maxheight = row["maxheight"].as< short >();
-	
-	// Get the unique identifier for the street name
-	auto name = row["streetname"].as< std::string >();
-	const auto &string_map_iterator = string_map.find(name);
-	if (string_map.end() == string_map_iterator)
-	{
-	  edge.nameID = names_list.size();
-	  names_list.push_back(name);
-	  string_map.insert(std::make_pair(name, edge.nameID));
-	}
-	else
-	  edge.nameID = string_map_iterator->second;
-	
-	file_out_stream.write((char *)&edge.source, sizeof(unsigned));
-	file_out_stream.write((char *)&edge.target, sizeof(unsigned));
-	file_out_stream.write((char *)&edge.length, sizeof(int));
-	file_out_stream.write((char *)&edge.dir, sizeof(short));
-	file_out_stream.write((char *)&edge.weight, sizeof(int));
-	file_out_stream.write((char *)&edge.type, sizeof(short));
-	file_out_stream.write((char *)&edge.nameID, sizeof(unsigned));
-	file_out_stream.write((char *)&edge.is_roundabout, sizeof(bool));
-	file_out_stream.write((char *)&edge.ignore_in_grid, sizeof(bool));
-	file_out_stream.write((char *)&edge.is_access_restricted, sizeof(bool));
-	file_out_stream.write((char *)&edge.is_contra_flow, sizeof(bool));
-	file_out_stream.write((char *)&edge.is_split, sizeof(bool));
-	file_out_stream.write((char *)&edge.maxload, sizeof(short));
-	file_out_stream.write((char *)&edge.maxheight, sizeof(short));
+      {
+        progress.printIncrement();
+        Edge edge;
+        edge.source = row["srcID"].as< unsigned >();
+        edge.target = row["trgID"].as< unsigned >();
+        edge.length = std::max(1, row["length"].as< int >());
+        edge.dir = row["forward"].as< bool >() ? row["forward"].as< bool >()!=row["backward"].as< bool >() : 2;
+        edge.weight = std::max(1, row["weight"].as< int >());
+        edge.type = 0;
+        edge.is_roundabout = 0;
+        edge.ignore_in_grid = 0;
+        edge.is_access_restricted = 0;
+        edge.is_contra_flow = 0;
+        edge.is_split = row["splitted"].as< bool >();
+        edge.maxload = row["maxload"].as< short >();
+        edge.maxheight = row["maxheight"].as< short >();
+        
+        // Get the unique identifier for the street name
+        auto name = row["streetname"].as< std::string >();
+        const auto &string_map_iterator = string_map.find(name);
+        if (string_map.end() == string_map_iterator)
+        {
+          edge.nameID = names_list.size();
+          names_list.push_back(name);
+          string_map.insert(std::make_pair(name, edge.nameID));
+        }
+        else
+          edge.nameID = string_map_iterator->second;
+        
+        file_out_stream.write((char *)&edge.source, sizeof(unsigned));
+        file_out_stream.write((char *)&edge.target, sizeof(unsigned));
+        file_out_stream.write((char *)&edge.length, sizeof(int));
+        file_out_stream.write((char *)&edge.dir, sizeof(short));
+        file_out_stream.write((char *)&edge.weight, sizeof(int));
+        file_out_stream.write((char *)&edge.type, sizeof(short));
+        file_out_stream.write((char *)&edge.nameID, sizeof(unsigned));
+        file_out_stream.write((char *)&edge.is_roundabout, sizeof(bool));
+        file_out_stream.write((char *)&edge.ignore_in_grid, sizeof(bool));
+        file_out_stream.write((char *)&edge.is_access_restricted, sizeof(bool));
+        file_out_stream.write((char *)&edge.is_contra_flow, sizeof(bool));
+        file_out_stream.write((char *)&edge.is_split, sizeof(bool));
+        file_out_stream.write((char *)&edge.maxload, sizeof(short));
+        file_out_stream.write((char *)&edge.maxheight, sizeof(short));
       }
   } catch (const std::exception &e) {
     SimpleLogger().Write(logWARNING) << e.what();
@@ -305,14 +306,14 @@ int main (int argc, char *argv[])
       "ORDER BY srcID";
     pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
     while(cur>>res)
-      for(auto row : res)			
-      {	
-	progress.printIncrement();
-	TurnRestriction turn;
-	turn.fromNode = row["srcID"].as< unsigned int >();
-	turn.viaNode = row["viaID"].as< unsigned int >();
-	turn.toNode = row["trgID"].as< unsigned int >();
-	restrictions_out_stream.write((char *)&(turn), sizeof(TurnRestriction));
+      for(auto row : res)
+      {
+        progress.printIncrement();
+        TurnRestriction turn;
+        turn.fromNode = row["srcID"].as< unsigned int >();
+        turn.viaNode = row["viaID"].as< unsigned int >();
+        turn.toNode = row["trgID"].as< unsigned int >();
+        restrictions_out_stream.write((char *)&(turn), sizeof(TurnRestriction));
       }
   } catch (const std::exception &e) {
     SimpleLogger().Write(logWARNING) << e.what();

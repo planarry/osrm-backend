@@ -134,7 +134,7 @@ int Prepare::Process(int argc, char *argv[])
 #ifdef WIN32
 #pragma message("Memory consumption on Windows can be higher due to different bit packing")
 #else
-    static_assert(sizeof(ImportEdge) == 24,
+    static_assert(sizeof(ImportEdge) == 28,
                   "changing ImportEdge type has influence on memory consumption!");
 #endif
     NodeID number_of_node_based_nodes =
@@ -516,7 +516,7 @@ std::size_t Prepare::BuildEdgeExpandedGraph(lua_State *lua_state,
 
     BOOST_ASSERT(number_of_edge_based_nodes != std::numeric_limits<unsigned>::max());
 #ifndef WIN32
-    static_assert(sizeof(EdgeBasedEdge) == 16,
+    static_assert(sizeof(EdgeBasedEdge) == 24,
                   "changing ImportEdge type has influence on memory consumption!");
 #endif
 

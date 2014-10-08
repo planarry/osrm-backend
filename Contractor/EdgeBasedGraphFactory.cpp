@@ -366,6 +366,8 @@ void EdgeBasedGraphFactory::CompressGeometry()
             // add weight of e2's to e1
             m_node_based_graph->GetEdgeData(forward_e1).distance += fwd_edge_data2.distance;
             m_node_based_graph->GetEdgeData(reverse_e1).distance += rev_edge_data2.distance;
+            m_node_based_graph->GetEdgeData(forward_e1).length += fwd_edge_data2.length;
+            m_node_based_graph->GetEdgeData(reverse_e1).length += rev_edge_data2.length;
             if (add_traffic_signal_penalty)
             {
                 m_node_based_graph->GetEdgeData(forward_e1).distance +=
@@ -665,7 +667,10 @@ EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(const std::string &original_edg
                                                                   m_edge_based_edge_list.size(),
                                                                   distance,
                                                                   true,
-                                                                  false));
+                                                                  false,
+                                                                  edge_data1.length,
+                                                                  edge_data1.maxload,
+                                                                  edge_data1.maxheight));
             }
         }
     }

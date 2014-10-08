@@ -50,8 +50,8 @@ struct APIGrammar : qi::grammar<Iterator>
         geometry    = (-qi::lit('&')) >> qi::lit("geometry")     >> '=' >> qi::bool_[boost::bind(&HandlerT::setGeometryFlag, handler, ::_1)];
         cmp         = (-qi::lit('&')) >> qi::lit("compression")  >> '=' >> qi::bool_[boost::bind(&HandlerT::setCompressionFlag, handler, ::_1)];
         transports  = (-qi::lit('&')) >> qi::lit("transports")   >> '=' >> +(qi::int_[boost::bind(&HandlerT::addTransportRestriction, handler, ::_1)] >> -qi::lit(';'));
-	transport   = (-qi::lit('&')) >> qi::lit("transport")    >> '=' >> qi::int_[boost::bind(&HandlerT::addTransportRestriction, handler, ::_1)];
-	points      = (-qi::lit('&')) >> qi::lit("points")       >> '=' >> +((qi::double_ >> qi::lit(',') >> qi::double_)[boost::bind(&HandlerT::addCoordinate, handler, ::_1)] >> -qi::lit(';'));
+        transport   = (-qi::lit('&')) >> qi::lit("transport")    >> '=' >> qi::int_[boost::bind(&HandlerT::addTransportRestriction, handler, ::_1)];
+        points      = (-qi::lit('&')) >> qi::lit("points")       >> '=' >> +((qi::double_ >> qi::lit(',') >> qi::double_)[boost::bind(&HandlerT::addCoordinate, handler, ::_1)] >> -qi::lit(';'));
         location    = (-qi::lit('&')) >> (qi::lit("loc")|"via")  >> '=' >> (qi::double_ >> qi::lit(',') >> qi::double_)[boost::bind(&HandlerT::addCoordinate, handler, ::_1)];
         locationS   = (-qi::lit('&')) >> qi::lit("start")        >> '=' >> (qi::double_ >> qi::lit(',') >> qi::double_)[boost::bind(&HandlerT::addFirstCoordinate, handler, ::_1)];
         locationD   = (-qi::lit('&')) >> qi::lit("dest")         >> '=' >> (qi::double_ >> qi::lit(',') >> qi::double_)[boost::bind(&HandlerT::addLastCoordinate, handler, ::_1)];
@@ -65,7 +65,6 @@ struct APIGrammar : qi::grammar<Iterator>
         string            = +(qi::char_("a-zA-Z"));
         stringwithDot     = +(qi::char_("a-zA-Z0-9_.-"));
         stringwithPercent = +(qi::char_("a-zA-Z0-9_.-") | qi::char_('[') | qi::char_(']') | (qi::char_('%') >> qi::char_("0-9A-Z") >> qi::char_("0-9A-Z") ));
-	//transportset      = ();
     }
 
     qi::rule<Iterator> api_call, query;

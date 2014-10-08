@@ -82,7 +82,7 @@ static void EncodeObjectToBase64(const ObjectT & object, std::string& encoded) {
 template<class ObjectT>
 static void DecodeObjectFromBase64(const std::string& input, ObjectT & object) {
     try {
-    	std::string encoded(input);
+        std::string encoded(input);
         //replace "-" with "+" and "_" with "/"
         replaceAll(encoded, "-", "+");
         replaceAll(encoded, "_", "/");

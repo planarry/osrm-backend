@@ -45,6 +45,9 @@ struct QueryEdge
             id = other.id;
             forward = other.forward;
             backward = other.backward;
+            length = other.length;
+            maxload = other.maxload;
+            maxheight = other.maxheight;
         }
         NodeID id : 31;
         bool shortcut : 1;
@@ -52,8 +55,8 @@ struct QueryEdge
         bool forward : 1;
         bool backward : 1;
         int length : 30;
-        short maxload : 8;
-        short maxheight : 6;
+        unsigned short maxload : 8;
+        unsigned short maxheight : 6;
     } data;
 
     QueryEdge() : source(SPECIAL_NODEID), target(SPECIAL_NODEID) {}

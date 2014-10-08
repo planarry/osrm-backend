@@ -85,6 +85,9 @@ struct EdgeBasedNode
     unsigned packed_geometry_id; // if set, then the edge represents a packed geometry
     unsigned short fwd_segment_position; // segment id in a compressed geometry
     bool is_in_tiny_cc;
+    int length;
+    short maxload;
+    short maxheight;
 };
 
 #endif //EDGE_BASED_NODE_H
