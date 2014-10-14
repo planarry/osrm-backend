@@ -46,5 +46,7 @@ constexpr NodeID SPECIAL_NODEID = std::numeric_limits<unsigned>::max();
 constexpr EdgeID SPECIAL_EDGEID = std::numeric_limits<unsigned>::max();
 constexpr unsigned INVALID_NAMEID = std::numeric_limits<unsigned>::max();
 constexpr EdgeWeight INVALID_EDGE_WEIGHT = std::numeric_limits<int>::max();
+constexpr unsigned short MAXLOAD_LIMIT = 255u;
+constexpr unsigned short MAXHEIGHT_LIMIT = 63u;
 
 #endif /* TYPEDEFS_H */

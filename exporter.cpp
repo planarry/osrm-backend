@@ -175,13 +175,18 @@ int main (int argc, char *argv[])
     edges_count=w.exec("SELECT count(*) FROM edges e "
       "INNER JOIN nodes s on srcID=s.ID "
       "INNER JOIN nodes t on trgID=t.ID "
-      "WHERE e.confirmed AND speed>0 AND (forward or backward) "
-      "AND ST_Distance(s.coord, t.coord)>0").front()[0].as< unsigned int >();
+      "WHERE e.confirmed AND s.confirmed AND t.confirmed "
+      "AND speed>0 AND (forward or backward) "
+      "AND ST_Distance(s.coord::geometry, t.coord::geometry)>0").front()[0].as< unsigned int >();
   } catch (const std::exception &e) {
     SimpleLogger().Write(logWARNING) << e.what();
   } 
   try {
-    turns_count=w.exec("SELECT count(*) FROM turns WHERE confirmed").front()[0].as< unsigned int >();
+    turns_count=w.exec("SELECT count(*) FROM turns r "
+      "INNER JOIN nodes s on srcID=s.ID "
+      "INNER JOIN nodes v on viaID=v.ID "
+      "INNER JOIN nodes t on trgID=t.ID "
+      "WHERE r.confirmed AND s.confirmed AND v.confirmed AND t.confirmed").front()[0].as< unsigned int >();
   } catch (const std::exception &e) {
     SimpleLogger().Write(logWARNING) << e.what();
   } 
@@ -201,8 +206,8 @@ int main (int argc, char *argv[])
   file_out_stream.write((char *)&nodes_count, sizeof(unsigned));
   try {
     auto query = "SELECT ID, "
-      "(ST_X(coord::geometry)*1e6)::int as lat, "
-      "(ST_Y(coord::geometry)*1e6)::int as lon, "
+      "(ST_Y(coord::geometry)*1e6)::int as lat, "
+      "(ST_X(coord::geometry)*1e6)::int as lon, "
       "trafficlight "
       "FROM nodes "
       "WHERE confirmed "
@@ -212,9 +217,9 @@ int main (int argc, char *argv[])
       for(auto row : res)
       {
         progress.printIncrement();
-        ImportNode node;
-        node.lon = row["lat"].as< int >();
-        node.lat = row["lon"].as< int >();
+        ExternalMemoryNode node;
+        node.lat = row["lat"].as< int >();
+        node.lon = row["lon"].as< int >();
         node.node_id = row["ID"].as< unsigned int >();
         node.bollard = 0;
         node.trafficLight = row["trafficlight"].as< bool >();
@@ -230,14 +235,18 @@ int main (int argc, char *argv[])
     auto query = "SELECT srcID, trgID, "
       "forward, backward, "
       "splitted, streetname, speed, "
-      "ST_Distance(s.coord, t.coord)::int length, "
+      //"ST_Distance(s.coord, t.coord)::int length, "
+      "(ST_Y(s.coord::geometry)*1e6)::int as lat1, "
+      "(ST_X(s.coord::geometry)*1e6)::int as lon1, "
+      "(ST_Y(t.coord::geometry)*1e6)::int as lat2, "
+      "(ST_X(t.coord::geometry)*1e6)::int as lon2, "
       "(ST_Distance(s.coord, t.coord)/(speed/3.6)*10)::int weight, "
       "coalesce(nullif(maxload,0)/100, 255)::int maxload, " //max 25500 kilograms
       "coalesce(nullif(maxheight,0)*10, 63)::int maxheight " //max 6.3 meters height
       "FROM edges e "
       "INNER JOIN nodes s on srcID=s.ID "
       "INNER JOIN nodes t on trgID=t.ID "
-      "WHERE e.confirmed "
+      "WHERE e.confirmed AND s.confirmed AND t.confirmed "
       "AND speed>0 "
       "AND (forward or backward) "
       "AND ST_Distance(s.coord, t.coord)>0 "
@@ -250,7 +259,10 @@ int main (int argc, char *argv[])
         Edge edge;
         edge.source = row["srcID"].as< unsigned >();
         edge.target = row["trgID"].as< unsigned >();
-        edge.length = std::max(1, row["length"].as< int >());
+        edge.length = FixedPointCoordinate::ApproximateDistance(
+          row["lat1"].as<int>(), row["lon1"].as<int>(),
+          row["lat2"].as<int>(), row["lon2"].as<int>());
+        //edge.length = std::max(1, row["length"].as< int >());
         edge.dir = row["forward"].as< bool >() ? row["forward"].as< bool >()!=row["backward"].as< bool >() : 2;
         edge.weight = std::max(1, row["weight"].as< int >());
         edge.type = 0;
@@ -264,15 +276,19 @@ int main (int argc, char *argv[])
         
         // Get the unique identifier for the street name
         auto name = row["streetname"].as< std::string >();
-        const auto &string_map_iterator = string_map.find(name);
-        if (string_map.end() == string_map_iterator)
+        if(!name.empty())
         {
-          edge.nameID = names_list.size();
-          names_list.push_back(name);
-          string_map.insert(std::make_pair(name, edge.nameID));
+          const auto &string_map_iterator = string_map.find(name);
+          if (string_map.end() == string_map_iterator)
+          {
+            edge.nameID = names_list.size();
+            names_list.push_back(name);
+            string_map.insert(std::make_pair(name, edge.nameID));
+          }
+          else
+            edge.nameID = string_map_iterator->second;
         }
-        else
-          edge.nameID = string_map_iterator->second;
+        else edge.nameID = 0;
         
         file_out_stream.write((char *)&edge.source, sizeof(unsigned));
         file_out_stream.write((char *)&edge.target, sizeof(unsigned));
@@ -301,8 +317,11 @@ int main (int argc, char *argv[])
   restrictions_out_stream.write((char *)&turns_count, sizeof(unsigned));
   try {
     auto query = "SELECT srcID, viaID, trgID "
-      "FROM turns "
-      "WHERE confirmed "
+      "FROM turns r "
+      "INNER JOIN nodes s on srcID=s.ID "
+      "INNER JOIN nodes v on viaID=v.ID "
+      "INNER JOIN nodes t on trgID=t.ID "
+      "WHERE r.confirmed AND s.confirmed AND v.confirmed AND t.confirmed "
       "ORDER BY srcID";
     pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
     while(cur>>res)

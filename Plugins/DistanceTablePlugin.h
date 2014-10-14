@@ -126,17 +126,25 @@ template <class DataFacadeT> class DistanceTablePlugin : public BasePlugin
             return;
         }
         JSON::Object json_object;
-        JSON::Array json_array;
+        JSON::Array json_array_time;
+        JSON::Array json_array_length;
         const unsigned number_of_locations = static_cast<unsigned>(phantom_node_vector.size());
         for (unsigned row = 0; row < number_of_locations; ++row)
         {
-            JSON::Array json_row;
+            JSON::Array json_row_time;
             auto row_begin_iterator = result_table->begin() + (row * number_of_locations);
             auto row_end_iterator = result_table->begin() + ((row + 1) * number_of_locations);
-            json_row.values.insert(json_row.values.end(), row_begin_iterator, row_end_iterator);
-            json_array.values.push_back(json_row);
+            json_row_time.values.insert(json_row_time.values.end(), row_begin_iterator, row_end_iterator);
+            json_array_time.values.push_back(json_row_time);
+            
+            JSON::Array json_row_length;
+            row_begin_iterator = result_table->begin() + (row * number_of_locations + number_of_locations*number_of_locations);
+            row_end_iterator = result_table->begin() + ((row + 1) * number_of_locations + number_of_locations*number_of_locations);
+            json_row_length.values.insert(json_row_length.values.end(), row_begin_iterator, row_end_iterator);
+            json_array_length.values.push_back(json_row_length);
         }
-        json_object.values["distance_table"] = json_array;
+        json_object.values["time_table"] = json_array_time;
+        json_object.values["length_table"] = json_array_length;
         JSON::render(reply.content, json_object);
         TIMER_STOP(request);
         SimpleLogger().Write() << "Request processing time is " << TIMER_SEC(request) << "s";

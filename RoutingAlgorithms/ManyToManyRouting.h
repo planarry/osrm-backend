@@ -44,13 +44,15 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
     typedef BasicRoutingInterface<DataFacadeT> super;
     typedef SearchEngineData::QueryHeap QueryHeap;
     SearchEngineData &engine_working_data;
+    std::shared_ptr<std::unordered_map<NodeID, EdgeWeight>> length_map;
 
     struct NodeBucket
     {
         unsigned target_id; // essentially a row in the distance matrix
         EdgeWeight distance;
-        NodeBucket(const unsigned target_id, const EdgeWeight distance)
-            : target_id(target_id), distance(distance)
+        EdgeWeight length;
+        NodeBucket(const unsigned target_id, const EdgeWeight distance, const EdgeWeight length)
+            : target_id(target_id), distance(distance), length(length)
         {
         }
     };
@@ -58,7 +60,8 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
 
   public:
     ManyToManyRouting(DataFacadeT *facade, SearchEngineData &engine_working_data)
-        : super(facade), engine_working_data(engine_working_data)
+        : super(facade), engine_working_data(engine_working_data),
+        length_map(std::make_shared<std::unordered_map<NodeID, EdgeWeight>>())
     {
     }
 
@@ -69,7 +72,7 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
     {
         const unsigned number_of_locations = static_cast<unsigned>(phantom_nodes_array.size());
         std::shared_ptr<std::vector<EdgeWeight>> result_table =
-            std::make_shared<std::vector<EdgeWeight>>(number_of_locations * number_of_locations,
+            std::make_shared<std::vector<EdgeWeight>>(number_of_locations * number_of_locations * 2,
                                                       std::numeric_limits<EdgeWeight>::max());
 
         engine_working_data.InitializeOrClearFirstThreadLocalStorage(
@@ -83,6 +86,7 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
         for (const std::vector<PhantomNode> &phantom_node_vector : phantom_nodes_array)
         {
             query_heap.Clear();
+            length_map->clear();
             // insert target(s) at distance 0
 
             for (const PhantomNode &phantom_node : phantom_node_vector)
@@ -92,12 +96,14 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
                     query_heap.Insert(phantom_node.forward_node_id,
                                       phantom_node.GetForwardWeightPlusOffset(),
                                       phantom_node.forward_node_id);
+                    (*length_map)[phantom_node.forward_node_id]=phantom_node.GetForwardLength();
                 }
                 if (SPECIAL_NODEID != phantom_node.reverse_node_id)
                 {
                     query_heap.Insert(phantom_node.reverse_node_id,
                                       phantom_node.GetReverseWeightPlusOffset(),
                                       phantom_node.reverse_node_id);
+                    (*length_map)[phantom_node.reverse_node_id]=phantom_node.GetReverseLength();
                 }
             }
 
@@ -114,6 +120,7 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
         for (const std::vector<PhantomNode> &phantom_node_vector : phantom_nodes_array)
         {
             query_heap.Clear();
+            length_map->clear();
             for (const PhantomNode &phantom_node : phantom_node_vector)
             {
                 // insert sources at distance 0
@@ -122,12 +129,14 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
                     query_heap.Insert(phantom_node.forward_node_id,
                                       -phantom_node.GetForwardWeightPlusOffset(),
                                       phantom_node.forward_node_id);
+                    (*length_map)[phantom_node.forward_node_id]=-phantom_node.GetForwardLength();
                 }
                 if (SPECIAL_NODEID != phantom_node.reverse_node_id)
                 {
                     query_heap.Insert(phantom_node.reverse_node_id,
                                       -phantom_node.GetReverseWeightPlusOffset(),
                                       phantom_node.reverse_node_id);
+                    (*length_map)[phantom_node.reverse_node_id]=-phantom_node.GetReverseLength();
                 }
             }
 
@@ -155,6 +164,7 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
     {
         const NodeID node = query_heap.DeleteMin();
         const int source_distance = query_heap.GetKey(node);
+        const int source_length = (*length_map)[node];
 
         // check if each encountered node has an entry
         const auto bucket_iterator = search_space_with_buckets.find(node);
@@ -175,6 +185,8 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
                 {
                     (*result_table)[source_id * number_of_locations + target_id] =
                         (source_distance + target_distance);
+                    (*result_table)[source_id * number_of_locations + target_id + number_of_locations*number_of_locations] =
+                        (source_length + current_bucket.length);
                 }
             }
         }
@@ -193,7 +205,7 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
         const int target_distance = query_heap.GetKey(node);
 
         // store settled nodes in search space bucket
-        search_space_with_buckets[node].emplace_back(target_id, target_distance);
+        search_space_with_buckets[node].emplace_back(target_id, target_distance, (*length_map)[node]);
 
         if (StallAtNode<false>(node, target_distance, query_heap))
         {
@@ -218,11 +230,13 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
 
                 BOOST_ASSERT_MSG(edge_weight > 0, "edge_weight invalid");
                 const int to_distance = distance + edge_weight;
+                const int to_length = (*length_map)[node] + data.length;
 
                 // New Node discovered -> Add to Heap + Node Info Storage
                 if (!query_heap.WasInserted(to))
                 {
                     query_heap.Insert(to, to_distance, node);
+                    (*length_map)[to]=to_length;
                 }
                 // Found a shorter Path -> Update distance
                 else if (to_distance < query_heap.GetKey(to))
@@ -230,6 +244,7 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
                     // new parent
                     query_heap.GetData(to).parent = node;
                     query_heap.DecreaseKey(to, to_distance);
+                    (*length_map)[to]=to_length;
                 }
             }
         }

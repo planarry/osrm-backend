@@ -207,6 +207,10 @@ int Prepare::Process(int argc, char *argv[])
     SimpleLogger().Write() << "Serializing compacted graph of " << contracted_edge_count
                            << " edges";
 
+    for(auto ce:contracted_edge_list)
+      if(ce.data.id==303377)
+    SimpleLogger().Write()<<ce.data.id<<" = "<<ce.source<<"->"<<ce.target<<" = "<<ce.data.length;
+                                
     boost::filesystem::ofstream hsgr_output_stream(graph_out, std::ios::binary);
     hsgr_output_stream.write((char *)&fingerprint_orig, sizeof(FingerPrint));
     const unsigned max_used_node_id = 1 + [&contracted_edge_list]

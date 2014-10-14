@@ -227,19 +227,28 @@ class Contractor
             forward_edge.data.id = reverse_edge.data.id = id;
             forward_edge.data.originalEdges = reverse_edge.data.originalEdges = 1;
             forward_edge.data.distance = reverse_edge.data.distance =
+            forward_edge.data.length = reverse_edge.data.length =
                 std::numeric_limits<int>::max();
+            forward_edge.data.maxload = reverse_edge.data.maxload = MAXLOAD_LIMIT;
+            forward_edge.data.maxheight = reverse_edge.data.maxheight = MAXHEIGHT_LIMIT;
             // remove parallel edges
             while (i < edges.size() && edges[i].source == source && edges[i].target == target)
             {
-                if (edges[i].data.forward)
+                if (edges[i].data.forward 
+                  && edges[i].data.distance < forward_edge.data.distance)
                 {
-                    forward_edge.data.distance =
-                        std::min(edges[i].data.distance, forward_edge.data.distance);
+                    forward_edge.data.distance = edges[i].data.distance;
+                    forward_edge.data.length = edges[i].data.length;
+                    forward_edge.data.maxload = edges[i].data.maxload;
+                    forward_edge.data.maxheight = edges[i].data.maxheight;
                 }
-                if (edges[i].data.backward)
+                if (edges[i].data.backward 
+                  && edges[i].data.distance < reverse_edge.data.distance)
                 {
-                    reverse_edge.data.distance =
-                        std::min(edges[i].data.distance, reverse_edge.data.distance);
+                    reverse_edge.data.distance = edges[i].data.distance;
+                    reverse_edge.data.length = edges[i].data.length;
+                    reverse_edge.data.maxload = edges[i].data.maxload;
+                    reverse_edge.data.maxheight = edges[i].data.maxheight;
                 }
                 ++i;
             }

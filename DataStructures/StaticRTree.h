@@ -812,6 +812,8 @@ class StaticRTree
                          current_segment.name_id,
                          current_segment.forward_weight,
                          current_segment.reverse_weight,
+                         0,
+                         0,
                          current_segment.forward_offset,
                          current_segment.reverse_offset,
                          current_segment.packed_geometry_id,
@@ -1088,6 +1090,8 @@ class StaticRTree
                                                    current_edge.name_id,
                                                    current_edge.forward_weight,
                                                    current_edge.reverse_weight,
+                                                   0,
+                                                   0,
                                                    current_edge.forward_offset,
                                                    current_edge.reverse_offset,
                                                    current_edge.packed_geometry_id,
@@ -1133,10 +1137,12 @@ class StaticRTree
         if (SPECIAL_NODEID != result_phantom_node.forward_node_id)
         {
             result_phantom_node.forward_weight *= ratio;
+            result_phantom_node.forward_length = distance_1;
         }
         if (SPECIAL_NODEID != result_phantom_node.reverse_node_id)
         {
             result_phantom_node.reverse_weight *= (1.f - ratio);
+            result_phantom_node.reverse_length = distance_2-distance_1;
         }
     }
 

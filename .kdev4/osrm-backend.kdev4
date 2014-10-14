@@ -1,36 +1,60 @@
 [Buildset]
-BuildItems=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00\x01\x00\x00\x00\x18\x00o\x00s\x00r\x00m\x00-\x00b\x00a\x00c\x00k\x00e\x00n\x00d)
+BuildItems=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00\x02\x00\x00\x00\x18\x00o\x00s\x00r\x00m\x00-\x00b\x00a\x00c\x00k\x00e\x00n\x00d\x00\x00\x00\x16\x00o\x00s\x00r\x00m\x00-\x00r\x00o\x00u\x00t\x00e\x00d)
 
 [CMake]
-Build Directory Count=1
-Current Build Directory Index=0
+Build Directory Count=3
+Current Build Directory Index=2
 ProjectRootRelative=./
 
 [CMake][CMake Build Directory 0]
-Build Directory Path=file:///home/samogot/Documents/osrm-backend/build
+Build Directory Path=file:///home/samogot/Documents/osrm-backend/build/Release
 Build Type=Release
 CMake Binary=file:///usr/bin/cmake
 Environment Profile=
 Extra Arguments=
 Install Directory=file:///home/samogot/Documents/osrm-backend
 
+[CMake][CMake Build Directory 1]
+Build Directory Path=file:///home/samogot/Documents/osrm-backend/build/Debug
+Build Type=Debug
+CMake Binary=file:///usr/bin/cmake
+Environment Profile=
+Extra Arguments=
+Install Directory=file:///home/samogot/Documents/osrm-backend
+
+[CMake][CMake Build Directory 2]
+Build Directory Path=file:///home/samogot/Documents/osrm-backend/build/RelWithDebInfo
+Build Type=RelWithDebInfo
+CMake Binary=file:///usr/bin/cmake
+Environment Profile=
+Extra Arguments=
+Install Directory=file:///home/samogot/Documents/osrm-backend
+
 [Launch]
-Launch Configurations=Launch Configuration 0,Launch Configuration 1,Launch Configuration 2
+Launch Configurations=Launch Configuration 1,Launch Configuration 2,Launch Configuration 0,Launch Configuration 3
 
 [Launch][Launch Configuration 0]
 Configured Launch Modes=execute
 Configured Launchers=nativeAppLauncher
-Name=osrm-extract
+Name=osrm-prepare
 Type=Native Application
 
 [Launch][Launch Configuration 0][Data]
-Arguments=-b mv
+Arguments=map.osrm
+Debugger Shell=
 Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x00)
-Dependency Action=Build
+Dependency Action=Nothing
+Display Demangle Names=true
+Display Static Members=false
 EnvironmentGroup=default
 Executable=file:///home/samogot/Documents/osrm-backend/
 External Terminal=konsole --noclose --workdir %workdir -e %exe
-Project Target=osrm-backend,osrm-extract
+GDB Path=
+Project Target=osrm-backend,osrm-prepare
+Remote GDB Config Script=
+Remote GDB Run Script=
+Remote GDB Shell Script=
+Start With=ApplicationOutput
 Use External Terminal=false
 Working Directory=file:///home/samogot/Documents/osrm-backend/bin/
 isExecutable=false
@@ -42,10 +66,10 @@ Name=osrm-exporter
 Type=Native Application
 
 [Launch][Launch Configuration 1][Data]
-Arguments=-b mv -o map.osrm
+Arguments=-b mapVector -o map.osrm
 Configured from ProjectItem=osrm-backend,osrm-exporter
 Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x00)
-Dependency Action=Build
+Dependency Action=Nothing
 EnvironmentGroup=default
 Executable=file:///home/samogot/Documents/osrm-backend/
 External Terminal=konsole --noclose --workdir %workdir -e %exe
@@ -63,7 +87,7 @@ Type=Native Application
 [Launch][Launch Configuration 2][Data]
 Arguments=
 Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x00)
-Dependency Action=Build
+Dependency Action=Nothing
 EnvironmentGroup=default
 Executable=file:///home/samogot/Documents/osrm-backend/
 External Terminal=konsole --noclose --workdir %workdir -e %exe
@@ -71,6 +95,24 @@ Project Target=osrm-backend,osrm-routed
 Use External Terminal=false
 Working Directory=file:///home/samogot/Documents/osrm-backend/bin/
 isExecutable=false
+
+[Launch][Launch Configuration 3]
+Configured Launch Modes=execute
+Configured Launchers=nativeAppLauncher
+Name=start
+Type=Native Application
+
+[Launch][Launch Configuration 3][Data]
+Arguments=
+Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x03\x00\x00\x00\x0b\x00\x00\x00\x00\x02\x00\x00\x00\x18\x00o\x00s\x00r\x00m\x00-\x00b\x00a\x00c\x00k\x00e\x00n\x00d\x00\x00\x00\x1a\x00o\x00s\x00r\x00m\x00-\x00e\x00x\x00p\x00o\x00r\x00t\x00e\x00r\x00\x00\x00\x0b\x00\x00\x00\x00\x02\x00\x00\x00\x18\x00o\x00s\x00r\x00m\x00-\x00b\x00a\x00c\x00k\x00e\x00n\x00d\x00\x00\x00\x18\x00o\x00s\x00r\x00m\x00-\x00p\x00r\x00e\x00p\x00a\x00r\x00e\x00\x00\x00\x0b\x00\x00\x00\x00\x02\x00\x00\x00\x18\x00o\x00s\x00r\x00m\x00-\x00b\x00a\x00c\x00k\x00e\x00n\x00d\x00\x00\x00\x16\x00o\x00s\x00r\x00m\x00-\x00r\x00o\x00u\x00t\x00e\x00d)
+Dependency Action=Install
+EnvironmentGroup=default
+Executable=file:///home/samogot/Documents/osrm-backend/bin/start.sh
+External Terminal=konsole --noclose --workdir %workdir -e %exe
+Project Target=osrm-backend,osrm-routed
+Use External Terminal=false
+Working Directory=
+isExecutable=true
 
 [Project]
 VersionControlSupport=kdevgit

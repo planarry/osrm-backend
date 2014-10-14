@@ -80,8 +80,8 @@ struct RouteParameters
     bool compression;
     bool deprecatedAPI;
     bool uturn_default;
-    bool is_last_loc_set;
     unsigned check_sum;
+    bool is_last_loc_set;
     std::string service;
     std::string output_format;
     std::string jsonp_parameter;

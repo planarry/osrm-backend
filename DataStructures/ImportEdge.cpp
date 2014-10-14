@@ -66,7 +66,7 @@ NodeBasedEdge::NodeBasedEdge(NodeID source,
       access_restricted(access_restricted), contra_flow(contra_flow), is_split(is_split), 
       length(length), maxload(maxload), maxheight(maxheight)
 {
-    BOOST_ASSERT_MSG(type > 0, "negative edge type");
+    BOOST_ASSERT_MSG(type >= 0, "negative edge type");
 }
 
 bool EdgeBasedEdge::operator<(const EdgeBasedEdge &other) const

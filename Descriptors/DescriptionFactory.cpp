@@ -106,8 +106,8 @@ JSON::Array DescriptionFactory::AppendEncodedPolylineSplitedString(const bool re
           ret.values.push_back(polyline_compressor.printEncodedString(leg_path_description));
         else
           ret.values.push_back(polyline_compressor.printUnencodedString(leg_path_description));
-	leg_path_description.clear();
-	leg_path_description.push_back(segment);
+        leg_path_description.clear();
+        leg_path_description.push_back(segment);
       }
     }
     return ret;
