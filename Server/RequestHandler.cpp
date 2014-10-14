@@ -105,6 +105,8 @@ void RequestHandler::handle_request(const http::Request &req, http::Reply &reply
             const std::string json_p = (route_parameters.jsonp_parameter + "(");
             reply.content.insert(reply.content.end(), json_p.begin(), json_p.end());
         }
+        if(route_parameters.transport_restrictions.empty())
+          route_parameters.transport_restrictions.emplace_back();
         routing_machine->RunQuery(route_parameters, reply);
         if (!route_parameters.jsonp_parameter.empty())
         { // append brace to jsonp response

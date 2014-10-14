@@ -11,6 +11,7 @@
 #include "DataStructures/Percent.h"
 #include "typedefs.h"
 
+#include <cmath>
 #include <vector>
 #include <map>
 #include <chrono>
@@ -241,15 +242,15 @@ int main (int argc, char *argv[])
       "(ST_Y(t.coord::geometry)*1e6)::int as lat2, "
       "(ST_X(t.coord::geometry)*1e6)::int as lon2, "
       "(ST_Distance(s.coord, t.coord)/(speed/3.6)*10)::int weight, "
-      "coalesce(nullif(maxload,0)/100, 255)::int maxload, " //max 25500 kilograms
-      "coalesce(nullif(maxheight,0)*10, 63)::int maxheight " //max 6.3 meters height
+      "coalesce(maxload/100, 0)::int maxload, "
+      "coalesce(maxheight*10, 0)::int maxheight "
       "FROM edges e "
       "INNER JOIN nodes s on srcID=s.ID "
       "INNER JOIN nodes t on trgID=t.ID "
       "WHERE e.confirmed AND s.confirmed AND t.confirmed "
       "AND speed>0 "
       "AND (forward or backward) "
-      "AND ST_Distance(s.coord, t.coord)>0 "
+      "AND ST_Distance(s.coord::geometry, t.coord::geometry)>0 "
       "ORDER BY srcID";
     pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
     while(cur>>res)
@@ -259,9 +260,9 @@ int main (int argc, char *argv[])
         Edge edge;
         edge.source = row["srcID"].as< unsigned >();
         edge.target = row["trgID"].as< unsigned >();
-        edge.length = FixedPointCoordinate::ApproximateDistance(
+        edge.length = round(10*FixedPointCoordinate::ApproximateDistance(
           row["lat1"].as<int>(), row["lon1"].as<int>(),
-          row["lat2"].as<int>(), row["lon2"].as<int>());
+          row["lat2"].as<int>(), row["lon2"].as<int>()));
         //edge.length = std::max(1, row["length"].as< int >());
         edge.dir = row["forward"].as< bool >() ? row["forward"].as< bool >()!=row["backward"].as< bool >() : 2;
         edge.weight = std::max(1, row["weight"].as< int >());
@@ -273,6 +274,8 @@ int main (int argc, char *argv[])
         edge.is_split = row["splitted"].as< bool >();
         edge.maxload = row["maxload"].as< short >();
         edge.maxheight = row["maxheight"].as< short >();
+        if(!edge.maxload) edge.maxload = MAXLOAD_LIMIT;
+        if(!edge.maxheight) edge.maxheight = MAXHEIGHT_LIMIT;
         
         // Get the unique identifier for the street name
         auto name = row["streetname"].as< std::string >();

@@ -77,7 +77,7 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
 
     virtual ~AlternativeRouting() {}
 
-    void operator()(const PhantomNodes &phantom_node_pair, RawRouteData &raw_route_data)
+    void operator()(const PhantomNodes &phantom_node_pair, RawRouteData &raw_route_data, const TransportRestriction &tr)
     {
         std::vector<NodeID> alternative_path;
         std::vector<NodeID> via_node_candidate_list;
@@ -153,7 +153,8 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
                                              &upper_bound_to_shortest_path_distance,
                                              via_node_candidate_list,
                                              forward_search_space,
-                                             min_edge_offset);
+                                             min_edge_offset, 
+                                             tr);
             }
             if (0 < reverse_heap1.Size())
             {
@@ -163,7 +164,8 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
                                               &upper_bound_to_shortest_path_distance,
                                               via_node_candidate_list,
                                               reverse_search_space,
-                                              min_edge_offset);
+                                              min_edge_offset, 
+                                              tr);
             }
         }
 
@@ -285,7 +287,8 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
                                              &length_of_via_path,
                                              &sharing_of_via_path,
                                              packed_shortest_path,
-                                             min_edge_offset);
+                                             min_edge_offset, 
+                                             tr);
             const int maximum_allowed_sharing =
                 static_cast<int>(upper_bound_to_shortest_path_distance * VIAPATH_GAMMA);
             if (sharing_of_via_path <= maximum_allowed_sharing &&
@@ -310,7 +313,8 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
                                             &length_of_via_path,
                                             &s_v_middle,
                                             &v_t_middle,
-                                            min_edge_offset))
+                                            min_edge_offset, 
+                                            tr))
             {
                 // select first admissable
                 selected_via_node = candidate.node;
@@ -397,7 +401,8 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
                                                  int *real_length_of_via_path,
                                                  int *sharing_of_via_path,
                                                  const std::vector<NodeID> &packed_shortest_path,
-                                                 const EdgeWeight min_edge_offset)
+                                                 const EdgeWeight min_edge_offset, 
+                                                 const TransportRestriction &tr)
     {
         engine_working_data.InitializeOrClearSecondThreadLocalStorage(
             super::facade->GetNumberOfNodes());
@@ -424,7 +429,8 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
                                &s_v_middle,
                                &upper_bound_s_v_path_length,
                                min_edge_offset,
-                               false);
+                               false, 
+                               tr);
         }
         // compute path <v,..,t> by reusing backward search from node t
         NodeID v_t_middle = SPECIAL_NODEID;
@@ -437,7 +443,8 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
                                &v_t_middle,
                                &upper_bound_of_v_t_path_length,
                                min_edge_offset,
-                               true);
+                               true, 
+                               tr);
         }
         *real_length_of_via_path = upper_bound_s_v_path_length + upper_bound_of_v_t_path_length;
 
@@ -603,7 +610,8 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
                                        int *upper_bound_to_shortest_path_distance,
                                        std::vector<NodeID> &search_space_intersection,
                                        std::vector<SearchSpaceEdge> &search_space,
-                                       const EdgeWeight min_edge_offset) const
+                                       const EdgeWeight min_edge_offset, 
+                                       const TransportRestriction &tr) const
     {
         const NodeID node = forward_heap.DeleteMin();
         const int distance = forward_heap.GetKey(node);
@@ -644,6 +652,7 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
         for (auto edge : facade->GetAdjacentEdgeRange(node))
         {
             const EdgeData &data = facade->GetEdgeData(edge);
+            if(tr.IsEdgeRestricted(data)) continue;
             const bool edge_is_forward_directed =
                 (is_forward_directed ? data.forward : data.backward);
             if (edge_is_forward_directed)
@@ -682,7 +691,8 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
                                             int *length_of_via_path,
                                             NodeID *s_v_middle,
                                             NodeID *v_t_middle,
-                                            const EdgeWeight min_edge_offset) const
+                                            const EdgeWeight min_edge_offset, 
+                                            const TransportRestriction &tr) const
     {
         new_forward_heap.Clear();
         new_reverse_heap.Clear();
@@ -700,7 +710,8 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
                                s_v_middle,
                                &upper_bound_s_v_path_length,
                                min_edge_offset,
-                               false);
+                               false, 
+                               tr);
         }
 
         if (INVALID_EDGE_WEIGHT == upper_bound_s_v_path_length)
@@ -719,7 +730,8 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
                                v_t_middle,
                                &upper_bound_of_v_t_path_length,
                                min_edge_offset,
-                               true);
+                               true, 
+                               tr);
         }
 
         if (INVALID_EDGE_WEIGHT == upper_bound_of_v_t_path_length)
@@ -888,12 +900,12 @@ template <class DataFacadeT> class AlternativeRouting : private BasicRoutingInte
             if (!forward_heap3.Empty())
             {
                 super::RoutingStep(
-                    forward_heap3, reverse_heap3, &middle, &upper_bound, min_edge_offset, true);
+                    forward_heap3, reverse_heap3, &middle, &upper_bound, min_edge_offset, true, tr);
             }
             if (!reverse_heap3.Empty())
             {
                 super::RoutingStep(
-                    reverse_heap3, forward_heap3, &middle, &upper_bound, min_edge_offset, false);
+                    reverse_heap3, forward_heap3, &middle, &upper_bound, min_edge_offset, false, tr);
             }
         }
         return (upper_bound <= t_test_path_length);

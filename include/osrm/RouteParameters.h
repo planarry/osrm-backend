@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ROUTE_PARAMETERS_H
 
 #include <osrm/Coordinate.h>
+#include <osrm/TransportRestriction.h>
 
 #include <boost/fusion/container/vector/vector_fwd.hpp>
 
@@ -71,7 +72,7 @@ struct RouteParameters
     void addFirstCoordinate(const boost::fusion::vector<double, double> &coordinates);
     void addLastCoordinate(const boost::fusion::vector<double, double> &coordinates);
     
-    void addTransportRestriction(const int restr);
+    void addTransportRestriction(const boost::fusion::vector<double, double> &restr);
 
     short zoom_level;
     bool print_instructions;
@@ -89,6 +90,7 @@ struct RouteParameters
     std::vector<std::string> hints;
     std::vector<bool> uturns;
     std::vector<FixedPointCoordinate> coordinates;
+    std::vector<TransportRestriction> transport_restrictions;
 };
 
 #endif // ROUTE_PARAMETERS_H

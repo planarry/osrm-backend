@@ -67,7 +67,7 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
 
     ~ManyToManyRouting() {}
 
-    std::shared_ptr<std::vector<EdgeWeight>> operator()(const PhantomNodeArray &phantom_nodes_array)
+    std::shared_ptr<std::vector<EdgeWeight>> operator()(const PhantomNodeArray &phantom_nodes_array, const TransportRestriction &tr)
         const
     {
         const unsigned number_of_locations = static_cast<unsigned>(phantom_nodes_array.size());
@@ -110,7 +110,7 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
             // explore search space
             while (!query_heap.Empty())
             {
-                BackwardRoutingStep(target_id, query_heap, search_space_with_buckets);
+                BackwardRoutingStep(target_id, query_heap, search_space_with_buckets, tr);
             }
             ++target_id;
         }
@@ -147,7 +147,8 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
                                    number_of_locations,
                                    query_heap,
                                    search_space_with_buckets,
-                                   result_table);
+                                   result_table, 
+                                   tr);
             }
 
             ++source_id;
@@ -160,7 +161,8 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
                             const unsigned number_of_locations,
                             QueryHeap &query_heap,
                             const SearchSpaceWithBuckets &search_space_with_buckets,
-                            std::shared_ptr<std::vector<EdgeWeight>> result_table) const
+                            std::shared_ptr<std::vector<EdgeWeight>> result_table, 
+                            const TransportRestriction &tr) const
     {
         const NodeID node = query_heap.DeleteMin();
         const int source_distance = query_heap.GetKey(node);
@@ -186,20 +188,21 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
                     (*result_table)[source_id * number_of_locations + target_id] =
                         (source_distance + target_distance);
                     (*result_table)[source_id * number_of_locations + target_id + number_of_locations*number_of_locations] =
-                        (source_length + current_bucket.length);
+                        (source_length + current_bucket.length)/10;
                 }
             }
         }
-        if (StallAtNode<true>(node, source_distance, query_heap))
+        if (StallAtNode<true>(node, source_distance, query_heap, tr))
         {
             return;
         }
-        RelaxOutgoingEdges<true>(node, source_distance, query_heap);
+        RelaxOutgoingEdges<true>(node, source_distance, query_heap, tr);
     }
 
     void BackwardRoutingStep(const unsigned target_id,
                              QueryHeap &query_heap,
-                             SearchSpaceWithBuckets &search_space_with_buckets) const
+                             SearchSpaceWithBuckets &search_space_with_buckets, 
+                             const TransportRestriction &tr) const
     {
         const NodeID node = query_heap.DeleteMin();
         const int target_distance = query_heap.GetKey(node);
@@ -207,21 +210,22 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
         // store settled nodes in search space bucket
         search_space_with_buckets[node].emplace_back(target_id, target_distance, (*length_map)[node]);
 
-        if (StallAtNode<false>(node, target_distance, query_heap))
+        if (StallAtNode<false>(node, target_distance, query_heap, tr))
         {
             return;
         }
 
-        RelaxOutgoingEdges<false>(node, target_distance, query_heap);
+        RelaxOutgoingEdges<false>(node, target_distance, query_heap, tr);
     }
 
     template <bool forward_direction>
     inline void
-    RelaxOutgoingEdges(const NodeID node, const EdgeWeight distance, QueryHeap &query_heap) const
+    RelaxOutgoingEdges(const NodeID node, const EdgeWeight distance, QueryHeap &query_heap, const TransportRestriction &tr) const
     {
         for (auto edge : super::facade->GetAdjacentEdgeRange(node))
         {
             const auto &data = super::facade->GetEdgeData(edge);
+            if(tr.IsEdgeRestricted(data)) continue;
             const bool direction_flag = (forward_direction ? data.forward : data.backward);
             if (direction_flag)
             {
@@ -252,17 +256,19 @@ template <class DataFacadeT> class ManyToManyRouting : public BasicRoutingInterf
 
     // Stalling
     template <bool forward_direction>
-    inline bool StallAtNode(const NodeID node, const EdgeWeight distance, QueryHeap &query_heap)
+    inline bool StallAtNode(const NodeID node, const EdgeWeight distance, QueryHeap &query_heap, const TransportRestriction &tr)
         const
     {
         for (auto edge : super::facade->GetAdjacentEdgeRange(node))
         {
             const auto &data = super::facade->GetEdgeData(edge);
+            if(tr.IsEdgeRestricted(data)) continue;
             const bool reverse_flag = ((!forward_direction) ? data.forward : data.backward);
             if (reverse_flag)
             {
                 const NodeID to = super::facade->GetTarget(edge);
                 const int edge_weight = data.distance;
+                
                 BOOST_ASSERT_MSG(edge_weight > 0, "edge_weight invalid");
                 if (query_heap.WasInserted(to))
                 {

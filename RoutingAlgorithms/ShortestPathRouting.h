@@ -51,7 +51,8 @@ template <class DataFacadeT> class ShortestPathRouting : public BasicRoutingInte
 
     void operator()(const std::vector<PhantomNodes> &phantom_nodes_vector,
                     const std::vector<bool> &uturn_indicators,
-                    RawRouteData &raw_route_data) const
+                    RawRouteData &raw_route_data, 
+                    const TransportRestriction &tr) const
     {
         int distance1 = 0;
         int distance2 = 0;
@@ -153,12 +154,12 @@ template <class DataFacadeT> class ShortestPathRouting : public BasicRoutingInte
                 if (!forward_heap1.Empty())
                 {
                     super::RoutingStep(
-                        forward_heap1, reverse_heap1, &middle1, &local_upper_bound1, min_edge_offset, true);
+                        forward_heap1, reverse_heap1, &middle1, &local_upper_bound1, min_edge_offset, true, tr);
                 }
                 if (!reverse_heap1.Empty())
                 {
                     super::RoutingStep(
-                        reverse_heap1, forward_heap1, &middle1, &local_upper_bound1, min_edge_offset, false);
+                        reverse_heap1, forward_heap1, &middle1, &local_upper_bound1, min_edge_offset, false, tr);
                 }
             }
 
@@ -169,12 +170,12 @@ template <class DataFacadeT> class ShortestPathRouting : public BasicRoutingInte
                     if (!forward_heap2.Empty())
                     {
                         super::RoutingStep(
-                            forward_heap2, reverse_heap2, &middle2, &local_upper_bound2, min_edge_offset, true);
+                            forward_heap2, reverse_heap2, &middle2, &local_upper_bound2, min_edge_offset, true, tr);
                     }
                     if (!reverse_heap2.Empty())
                     {
                         super::RoutingStep(
-                            reverse_heap2, forward_heap2, &middle2, &local_upper_bound2, min_edge_offset, false);
+                            reverse_heap2, forward_heap2, &middle2, &local_upper_bound2, min_edge_offset, false, tr);
                     }
                 }
             }

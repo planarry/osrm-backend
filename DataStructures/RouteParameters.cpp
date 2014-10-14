@@ -129,6 +129,7 @@ RouteParameters::addLastCoordinate(const boost::fusion::vector<double, double> &
         static_cast<int>(COORDINATE_PRECISION * boost::fusion::at_c<1>(transmitted_coordinates)));
 }
 void
-RouteParameters::addTransportRestriction(const int restr)
+RouteParameters::addTransportRestriction(const boost::fusion::vector<int, float> &restr)
 {
+  transport_restrictions.emplace_back(boost::fusion::at_c<0>(restr)/100, boost::fusion::at_c<1>(restr)*10);
 }

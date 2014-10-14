@@ -34,6 +34,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../Util/ContainerUtils.h"
 #include "../Util/SimpleLogger.h"
 
+#include <osrm/TransportRestriction.h>
+
 #include <boost/assert.hpp>
 
 #include <stack>
@@ -64,7 +66,8 @@ template <class DataFacadeT> class BasicRoutingInterface
                             NodeID *middle_node_id,
                             int *upper_bound,
                             const int min_edge_offset,
-                            const bool forward_direction) const
+                            const bool forward_direction,
+                            const TransportRestriction tr) const
     {
         const NodeID node = forward_heap.DeleteMin();
         const int distance = forward_heap.GetKey(node);
@@ -99,6 +102,7 @@ template <class DataFacadeT> class BasicRoutingInterface
         for (const auto edge : facade->GetAdjacentEdgeRange(node))
         {
             const EdgeData &data = facade->GetEdgeData(edge);
+            if(tr.IsEdgeRestricted(data)) continue;
             const bool reverse_flag = ((!forward_direction) ? data.forward : data.backward);
             if (reverse_flag)
             {
@@ -120,6 +124,7 @@ template <class DataFacadeT> class BasicRoutingInterface
         for (const auto edge : facade->GetAdjacentEdgeRange(node))
         {
             const EdgeData &data = facade->GetEdgeData(edge);
+            if(tr.IsEdgeRestricted(data)) continue;
             bool forward_directionFlag = (forward_direction ? data.forward : data.backward);
             if (forward_directionFlag)
             {

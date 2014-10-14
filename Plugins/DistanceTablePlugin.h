@@ -114,37 +114,41 @@ template <class DataFacadeT> class DistanceTablePlugin : public BasePlugin
             BOOST_ASSERT(phantom_node_vector[i].front().isValid(facade->GetNumberOfNodes()));
         }
 
-        TIMER_START(distance_table);
-        std::shared_ptr<std::vector<EdgeWeight>> result_table =
-            search_engine_ptr->distance_table(phantom_node_vector);
-        TIMER_STOP(distance_table);
-        SimpleLogger().Write() << "Calc time is " << TIMER_SEC(distance_table) << "s";
-
-        if (!result_table)
-        {
-            reply = http::Reply::StockReply(http::Reply::badRequest);
-            return;
-        }
         JSON::Object json_object;
         JSON::Array json_array_time;
         JSON::Array json_array_length;
-        const unsigned number_of_locations = static_cast<unsigned>(phantom_node_vector.size());
-        for (unsigned row = 0; row < number_of_locations; ++row)
+        for(const TransportRestriction &tr : route_parameters.transport_restrictions)
         {
-            JSON::Array json_row_time;
-            auto row_begin_iterator = result_table->begin() + (row * number_of_locations);
-            auto row_end_iterator = result_table->begin() + ((row + 1) * number_of_locations);
-            json_row_time.values.insert(json_row_time.values.end(), row_begin_iterator, row_end_iterator);
-            json_array_time.values.push_back(json_row_time);
-            
-            JSON::Array json_row_length;
-            row_begin_iterator = result_table->begin() + (row * number_of_locations + number_of_locations*number_of_locations);
-            row_end_iterator = result_table->begin() + ((row + 1) * number_of_locations + number_of_locations*number_of_locations);
-            json_row_length.values.insert(json_row_length.values.end(), row_begin_iterator, row_end_iterator);
-            json_array_length.values.push_back(json_row_length);
+          std::shared_ptr<std::vector<EdgeWeight>> result_table =
+              search_engine_ptr->distance_table(phantom_node_vector, tr);
+
+          if (!result_table)
+          {
+              reply = http::Reply::StockReply(http::Reply::badRequest);
+              return;
+          }
+          JSON::Array json_matrix_time;
+          JSON::Array json_matrix_length;
+          const unsigned number_of_locations = static_cast<unsigned>(phantom_node_vector.size());
+          for (unsigned row = 0; row < number_of_locations; ++row)
+          {
+              JSON::Array json_row_time;
+              auto row_begin_iterator = result_table->begin() + (row * number_of_locations);
+              auto row_end_iterator = result_table->begin() + ((row + 1) * number_of_locations);
+              json_row_time.values.insert(json_row_time.values.end(), row_begin_iterator, row_end_iterator);
+              json_matrix_time.values.push_back(json_row_time);
+              
+              JSON::Array json_row_length;
+              row_begin_iterator = result_table->begin() + (row * number_of_locations + number_of_locations*number_of_locations);
+              row_end_iterator = result_table->begin() + ((row + 1) * number_of_locations + number_of_locations*number_of_locations);
+              json_row_length.values.insert(json_row_length.values.end(), row_begin_iterator, row_end_iterator);
+              json_matrix_length.values.push_back(json_row_length);
+          }
+          json_array_time.values.push_back(json_matrix_time);
+          json_array_length.values.push_back(json_matrix_length);
         }
-        json_object.values["time_table"] = json_array_time;
-        json_object.values["length_table"] = json_array_length;
+          json_object.values["time_table"] = json_array_time;
+          json_object.values["length_table"] = json_array_length;
         JSON::render(reply.content, json_object);
         TIMER_STOP(request);
         SimpleLogger().Write() << "Request processing time is " << TIMER_SEC(request) << "s";

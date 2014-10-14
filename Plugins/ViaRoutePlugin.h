@@ -121,11 +121,12 @@ template <class DataFacadeT> class ViaRoutePlugin : public BasePlugin
         if (is_alternate_requested && is_only_one_segment)
         {
             search_engine_ptr->alternative_path(raw_route.segment_end_coordinates.front(),
-                                                raw_route);
+                                                raw_route, route_parameters.transport_restrictions.front());
         }
         else
         {
-            search_engine_ptr->shortest_path(raw_route.segment_end_coordinates, route_parameters.uturns, raw_route);
+            search_engine_ptr->shortest_path(raw_route.segment_end_coordinates, route_parameters.uturns, 
+                                             raw_route, route_parameters.transport_restrictions.front());
         }
 
         if (INVALID_EDGE_WEIGHT == raw_route.shortest_path_length)
