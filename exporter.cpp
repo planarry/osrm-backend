@@ -13,7 +13,7 @@
 
 #include <cmath>
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -140,7 +140,7 @@ int main (int argc, char *argv[])
   Config config;
   const FingerPrint fingerprint;
   std::vector<std::string> names_list;
-  std::map<std::string, unsigned int> string_map;
+  std::unordered_map<std::string, unsigned int> string_map;
   
   LogPolicy::GetInstance().Unmute();
   if(!ParseArguments(argc, argv, config))
