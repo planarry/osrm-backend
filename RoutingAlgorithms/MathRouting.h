@@ -151,8 +151,8 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         }
         BOOST_ASSERT(source_id == target_id);
         
-        std::unordered_map<unsigned,std::unordered_set<NodeID>> start_points_for_graph;
-        std::vector<std::unordered_map<unsigned,std::unordered_set<NodeID>>> shortest_graph(number_of_locations);
+        std::unordered_map<unsigned,std::unordered_set<long>> start_points_for_graph;
+        std::vector<std::unordered_map<unsigned,std::unordered_set<long>>> shortest_graph(number_of_locations);
         for(source_id=0;source_id<number_of_locations;++source_id)
             for(target_id=0;target_id<number_of_locations;++target_id)
             {
@@ -169,7 +169,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                             }
                             else 
                             {
-                                shortest_graph[source_id][cur_node].insert(0);
+                                shortest_graph[source_id][cur_node].insert(-target_id);
                                 process=false;
                             }
                             break;
