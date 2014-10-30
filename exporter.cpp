@@ -62,23 +62,23 @@ bool ParseArguments(int argc, char *argv[], Config& config)
   // declare a group of options that will be allowed both on command line and in config file
   boost::program_options::options_description config_options("Configuration");
   config_options.add_options()(
-        "fileName,o",
+        "filename,o",
         boost::program_options::value<std::string>(&config.fileName),
         "Outpup *.osrm filename"
       )(
-        "dbHost,H",
+        "dbhost,H",
         boost::program_options::value<std::string>(&config.dbHost)->default_value("localhost"),
         "PostrgeSQL host"
       )(
-        "dbUser,u",
+        "dbuser,u",
         boost::program_options::value<std::string>(&config.dbUser)->default_value("postgres"),
         "PostrgeSQL user"
       )(
-        "dbPass,p",
+        "dbpass,p",
         boost::program_options::value<std::string>(&config.dbPass)->default_value("postgres"),
         "PostrgeSQL password"
       )(
-        "dbName,b",
+        "dbname,b",
         boost::program_options::value<std::string>(&config.dbName),
         "PostrgeSQL input database name"
       );
@@ -126,7 +126,7 @@ bool ParseArguments(int argc, char *argv[], Config& config)
       boost::program_options::notify(option_variables);
   }
 
-  if (!option_variables.count("dbName") || !option_variables.count("fileName"))
+  if (!option_variables.count("dbname") || !option_variables.count("filename"))
   {
       SimpleLogger().Write() << visible_options;
       return false;

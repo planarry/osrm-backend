@@ -155,7 +155,7 @@ template <class DataFacadeT> class JSONDescriptor : public BaseDescriptor<DataFa
                                               raw_route.shortest_path_length);
         JSON::Object json_route_summary;
         json_route_summary.values["total_distance"] = description_factory.summary.distance;
-        json_route_summary.values["total_time"] = description_factory.summary.duration;
+        json_route_summary.values["total_time"] = ceil(description_factory.summary.duration/60.0)*60;
         json_route_summary.values["start_point"] =
             facade->GetEscapedNameForNameID(description_factory.summary.source_name_id);
         json_route_summary.values["end_point"] =
@@ -238,8 +238,8 @@ template <class DataFacadeT> class JSONDescriptor : public BaseDescriptor<DataFa
             JSON::Array json_alternate_route_summary_array;
             json_alternate_route_summary.values["total_distance"] =
                 alternate_description_factory.summary.distance;
-            json_alternate_route_summary.values["total_time"] =
-                alternate_description_factory.summary.duration;
+            json_alternate_route_summary.values["total_time"] = 
+                ceil(alternate_description_factory.summary.duration/60.0)*60;
             json_alternate_route_summary.values["start_point"] = facade->GetEscapedNameForNameID(
                 alternate_description_factory.summary.source_name_id);
             json_alternate_route_summary.values["end_point"] = facade->GetEscapedNameForNameID(
