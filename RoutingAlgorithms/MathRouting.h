@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MATH_ROUTING_H
 
 #include "BasicRoutingInterface.h"
+#include "../DataStructures/JSONContainer.h"
 #include "../DataStructures/SearchEngineData.h"
 #include "../typedefs.h"
 
@@ -52,11 +53,24 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         {
         }
     };
+    struct SPHeapData
+    {
+        EdgeWeight time;
+        EdgeWeight weight;
+        std::vector<unsigned> settled;
+        SPHeapData(const EdgeWeight time, 
+                   const EdgeWeight weight, 
+                   const std::vector<unsigned> &settled)
+            : time(time), weight(weight), settled(settled)
+        {
+        }
+    };
     typedef BasicRoutingInterface<DataFacadeT> super;
     typedef SearchEngineData::QueryHeap QueryHeap;
     typedef std::unordered_map<NodeID, EdgeWeight> LengthMap;
     typedef std::unordered_map<NodeID, std::vector<NodeBucket>> SearchSpaceWithBuckets;
     typedef std::vector<std::pair<NodeID, EdgeWeight>>  CrossNodesTable;
+    typedef typename DataFacadeT::EdgeData EdgeData;
     SearchEngineData &engine_working_data;
 
   public:
@@ -67,12 +81,14 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
 
     ~MathRouting() {}
 
-    std::shared_ptr<std::vector<unsigned>> operator()(const PhantomNodeArray &phantom_nodes_array, const TransportRestriction &tr)
+    std::shared_ptr<std::vector<unsigned>> operator()(const PhantomNodeArray &phantom_nodes_array, const TransportRestriction &tr, std::vector<char> &output)
         const
     {
         const unsigned number_of_locations=phantom_nodes_array.size();
         std::shared_ptr<std::vector<unsigned>> result_table =
             std::make_shared<std::vector<unsigned>>(number_of_locations,
+                    std::numeric_limits<unsigned>::max());
+        std::vector<EdgeWeight> time_matrix(number_of_locations*number_of_locations,
                     std::numeric_limits<unsigned>::max());
 
         engine_working_data.InitializeOrClearFirstThreadLocalStorage(
@@ -144,6 +160,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                                    backward_search_space_with_buckets,
                                    forward_search_space_with_buckets,
                                    cross_nodes_table,
+                                   time_matrix,
                                    tr);
             }
 
@@ -151,10 +168,110 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         }
         BOOST_ASSERT(source_id == target_id);
         
-        std::unordered_map<unsigned,std::unordered_set<long>> start_points_for_graph;
+        JSON::Object root_obj;
+        JSON::Object forward_array, backward_array;
+        std::vector<JSON::Object> forward_point_objs_vector(number_of_locations),
+                                  backward_point_objs_vector(number_of_locations);
+        for(const auto &ii : forward_search_space_with_buckets)
+            for(const NodeBucket &bucket : ii.second)
+            {
+                EdgeData ed;        
+                EdgeID edge = super::facade->FindEdge(bucket.parent, ii.first);
+                do{
+                    if(edge==SPECIAL_EDGEID) break;
+                    ed = super::facade->GetEdgeData(edge);
+                    if (ed.shortcut)
+                        edge = super::facade->FindEdge(ed.id, ii.first);
+                    else break;
+                } while(true);
+                if(edge!=SPECIAL_EDGEID){
+                    NodeID nbn_id;
+                    if (!super::facade->EdgeIsCompressed(ed.id))
+                        nbn_id = super::facade->GetGeometryIndexForEdgeID(ed.id);
+                    else
+                    {
+                        std::vector<unsigned> id_vector;
+                        auto index=super::facade->GetGeometryIndexForEdgeID(ed.id);
+                        super::facade->GetUncompressedGeometry(index, id_vector);
+                        nbn_id = id_vector.back();
+                    }
+                    auto coord = super::facade->GetCoordinateOfNode(nbn_id);
+                    JSON::Object temp_obj;
+                    temp_obj.values["parent"] = bucket.parent;
+                    temp_obj.values["distance"] = bucket.distance;
+                    temp_obj.values["lat"] = coord.lat / COORDINATE_PRECISION;
+                    temp_obj.values["lon"] = coord.lon / COORDINATE_PRECISION;
+                    forward_point_objs_vector[bucket.point_id].values[IntToString(ii.first)]=temp_obj;
+                }
+            }
+        for(const auto &ii : backward_search_space_with_buckets)
+            for(const NodeBucket &bucket : ii.second)
+            {
+                EdgeData ed;        
+                EdgeID edge = super::facade->FindEdge(bucket.parent, ii.first);
+                do{
+                    if(edge==SPECIAL_EDGEID) break;
+                    ed = super::facade->GetEdgeData(edge);
+                    if (ed.shortcut)
+                        edge = super::facade->FindEdge(ed.id, ii.first);
+                    else break;
+                } while(true);
+                if(edge!=SPECIAL_EDGEID){
+                    NodeID nbn_id;
+                    if (!super::facade->EdgeIsCompressed(ed.id))
+                        nbn_id = super::facade->GetGeometryIndexForEdgeID(ed.id);
+                    else
+                    {
+                        std::vector<unsigned> id_vector;
+                        auto index=super::facade->GetGeometryIndexForEdgeID(ed.id);
+                        super::facade->GetUncompressedGeometry(index, id_vector);
+                        nbn_id = id_vector.back();
+                    }
+                    auto coord = super::facade->GetCoordinateOfNode(nbn_id);
+                    JSON::Object temp_obj;
+                    temp_obj.values["parent"] = bucket.parent;
+                    temp_obj.values["distance"] = bucket.distance;
+                    temp_obj.values["lat"] = coord.lat / COORDINATE_PRECISION;
+                    temp_obj.values["lon"] = coord.lon / COORDINATE_PRECISION;
+                    backward_point_objs_vector[bucket.point_id].values[IntToString(ii.first)]=temp_obj;
+                }
+            }
+        for(int i=0;i<number_of_locations;++i)
+        {
+            forward_array.values[IntToString(i)]=forward_point_objs_vector[i];
+            backward_array.values[IntToString(i)]=backward_point_objs_vector[i];
+        }
+        root_obj.values["forward"]=forward_array;
+        root_obj.values["backward"]=backward_array;
+        root_obj.values["n"]=number_of_locations;
+        JSON::render(output, root_obj);
+        
+        /*std::unordered_map<unsigned,std::unordered_set<long>> start_points_for_graph;
         std::vector<std::unordered_map<unsigned,std::unordered_set<long>>> shortest_graph(number_of_locations);
-        for(source_id=0;source_id<number_of_locations;++source_id)
-            for(target_id=0;target_id<number_of_locations;++target_id)
+        BuildShortestPathGaph(start_points_for_graph,
+                              shortest_graph,
+                              backward_search_space_with_buckets,
+                              forward_search_space_with_buckets,
+                              cross_nodes_table,
+                              number_of_locations);*/
+        
+        //BinaryHeap<std::pair<unsigned,NodeID>, NodeID, int, SPHeapData, UnorderedMapStorage<NodeID, int>> spHeap(super::facade->GetNumberOfNodes());
+        //SPHeapData min
+        
+        
+        
+        return result_table;
+    }
+    
+    void BuildShortestPathGaph(std::unordered_map<unsigned,std::unordered_set<long>> &start_points_for_graph,
+                               std::vector<std::unordered_map<unsigned,std::unordered_set<long>>> &shortest_graph,
+                               const SearchSpaceWithBuckets &backward_search_space_with_buckets,
+                               const SearchSpaceWithBuckets &forward_search_space_with_buckets,
+                               const std::vector<std::pair<NodeID, EdgeWeight>> &cross_nodes_table,
+                               const unsigned number_of_locations)
+    {
+        for(int source_id=0;source_id<number_of_locations;++source_id)
+            for(int target_id=0;target_id<number_of_locations;++target_id)
             {
                 NodeID cur_node=cross_nodes_table[source_id * number_of_locations + target_id].first;
                 bool process=true;
@@ -193,26 +310,20 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                             break;
                         }
             }
-        
-        int current_id=0;
-        
-        
-        
-        return result_table;
     }
 
     void ForwardRoutingStep(const unsigned source_id,
                             const unsigned number_of_locations,
                             QueryHeap &query_heap,
-                            LengthMap &length_map,
                             const SearchSpaceWithBuckets &backward_search_space_with_buckets,
                             SearchSpaceWithBuckets &forward_search_space_with_buckets,
                             CrossNodesTable &cross_nodes_table,
+                            std::vector<EdgeWeight> &time_matrix,
                             const TransportRestriction &tr) const
     {
         const NodeID node = query_heap.DeleteMin();
         const int source_distance = query_heap.GetKey(node);
-        const int source_length = length_map[node];
+        //const int source_length = length_map[node];
 
         forward_search_space_with_buckets[node].emplace_back(source_id, source_distance, query_heap.GetData(node).parent);
 
@@ -230,12 +341,13 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                 const int target_distance = current_bucket.distance;
                 const EdgeWeight new_distance = source_distance + target_distance;
                 const unsigned index = source_id * number_of_locations + target_id;
-                if(cross_nodes_table[index].first) {
-                    const EdgeWeight current_distance = cross_nodes_table[index].second;
-                    if (new_distance >= 0 && new_distance < current_distance)
-                        cross_nodes_table[index]=std::make_pair(node,new_distance);
+                const EdgeWeight current_distance = cross_nodes_table[index].second;
+                if(!cross_nodes_table[index].first 
+                    || (new_distance >= 0 && new_distance < current_distance))
+                {
+                    cross_nodes_table[index]=std::make_pair(node,new_distance);
+                    time_matrix[index]=new_distance;
                 }
-                else cross_nodes_table[index]=std::make_pair(node,new_distance);
             }
         }
         if (StallAtNode<true>(node, source_distance, query_heap, tr))

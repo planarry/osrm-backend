@@ -1,5 +1,5 @@
-#ifndef DISTANCE_TABLE_PLUGIN_H
-#define DISTANCE_TABLE_PLUGIN_H
+#ifndef MATH_PLUGIN_H
+#define MATH_PLUGIN_H
 
 #include "BasePlugin.h"
 
@@ -39,7 +39,7 @@ template <class DataFacadeT> class MathPlugin : public BasePlugin
     {
         TIMER_START(request);
         // check number of parameters
-        if (2 > route_parameters.coordinates.size())
+        if (1 > route_parameters.coordinates.size())
         {
             reply = http::Reply::StockReply(http::Reply::badRequest);
             return;
@@ -86,11 +86,12 @@ template <class DataFacadeT> class MathPlugin : public BasePlugin
 
             BOOST_ASSERT(phantom_node_vector[i].front().isValid(facade->GetNumberOfNodes()));
         }
-
         std::shared_ptr<std::vector<unsigned int>> points =
-              search_engine_ptr->math(phantom_node_vector, route_parameters.transport_restrictions.front());
-        for(auto p : *points)
-            SimpleLogger().Write()<<p;
+              search_engine_ptr->math(phantom_node_vector, 
+                                      route_parameters.transport_restrictions.front(), 
+                                      reply.content);
+        //for(auto p : *points)
+        //    SimpleLogger().Write()<<p;
         TIMER_STOP(request);
         SimpleLogger().Write() << "Request processing time is " << TIMER_SEC(request) << "s";
     }
@@ -100,4 +101,4 @@ template <class DataFacadeT> class MathPlugin : public BasePlugin
     DataFacadeT *facade;
 };
 
-#endif // DISTANCE_TABLE_PLUGIN_H
+#endif // MATH_PLUGIN_H

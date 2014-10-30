@@ -1733,8 +1733,68 @@ OSRM.VERSION = "0.1.11", OSRM.DATE = "131122", OSRM.CONSTANTS = {}, OSRM.DEFAULT
 			t+='</table>';
 			document.getElementById('length-table-box').innerHTML=t;
 		},
+clearTransitMarkers: function(){
+	for(i in window.transitMarkers)
+		OSRM.G.map.removeLayer(window.transitMarkers[i])
+	window.transitMarkers=[]
+	window.glob.min=[]
+},
+showTransitMarkers: function(a) {
+//OSRM.Routing.showTransitMarkers=function(a) {
+	function getRandomColor() {
+		var letters = '0123456789ABCDEF'.split('');
+		var color = '#';
+		for (var i = 0; i < 6; i++ ) {
+			color += letters[Math.floor(Math.random() * 16)];
+		}
+		return color;
+	}
+	window.glob=a;
+	OSRM.Routing.clearTransitMarkers()
+	for(i in a.backward[0]) { 
+		b1=true; 
+		b2=false;
+		for(j=0;j<a.n;++j)
+			if(!a.backward[j][i]) { 
+				b1=false; 
+				break; 
+			}
+		if(b1) 
+			for(j=0;j<a.n && !b2;++j)
+				for(k=0;k<a.n;++k)
+					if(!a.backward[j][a.backward[k][i].parent]) {
+						b2=true; 
+						cur=a.backward[k][i].parent;
+						while(a.backward[k][cur])
+						{
+						
+							if(a.backward[j][cur])
+							{
+								b2=false; 
+								break;
+							}
+							else cur=a.backward[k][cur].parent
+						}
+						/*if(b2)*/ break; 
+					}
+		if(b1 && b2) 
+		{
+			window.transitMarkers.push(L.marker(a.backward[0][i],{opacity: 0.5}).addTo(OSRM.G.map))
+			window.glob.min.push(i)
+		}
+	}
+	for(j=0;j<a.n;++j)
+	{
+		color = getRandomColor()
+		//console.log(j,color)
+		for(i in a.backward[j]) 
+			if(a.backward[j][a.backward[j][i].parent])
+				window.transitMarkers.push(L.polyline([a.backward[j][i], a.backward[j][a.backward[j][i].parent]],{color:color, weight:1}).addTo(OSRM.G.map))
+	}
+},
         getRoute: function(a) {
 			//OSRM.JSONP.call(OSRM.Routing._buildCall()+'&compression=false', function(a){console.log(a.route_geometry)}, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT, "log");
+			if(OSRM.G.markers.route.length > 0) OSRM.JSONP.call(OSRM.Routing._buildCall().replace('viaroute','math'), OSRM.Routing.showTransitMarkers, OSRM.Routing.clearTransitMarkers, OSRM.DEFAULTS.JSONP_TIMEOUT, "math")
             return OSRM.G.markers.route.length < 2 ? (void OSRM.G.route.hideRoute(), OSRM.Routing.timeoutTables()) : (a = a || {}, OSRM.JSONP.clear("dragging"), OSRM.JSONP.clear("redraw"), OSRM.JSONP.clear("table"), OSRM.JSONP.clear("route"), void OSRM.JSONP.call(OSRM.Routing._buildCall() + "&instructions=true", OSRM.Routing.showRoute, OSRM.Routing.timeoutRoute, OSRM.DEFAULTS.JSONP_TIMEOUT, "route", a), OSRM.JSONP.call(OSRM.Routing._buildCall().replace('viaroute','table'), OSRM.Routing.showTables, OSRM.Routing.timeoutTables, OSRM.DEFAULTS.JSONP_TIMEOUT, "table"))
         },
         getRoute_Reversed: function() {
