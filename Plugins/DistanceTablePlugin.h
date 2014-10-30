@@ -135,6 +135,8 @@ template <class DataFacadeT> class DistanceTablePlugin : public BasePlugin
               JSON::Array json_row_time;
               auto row_begin_iterator = result_table->begin() + (row * number_of_locations);
               auto row_end_iterator = result_table->begin() + ((row + 1) * number_of_locations);
+              for(auto ii=row_begin_iterator;ii<row_end_iterator;++ii)
+                  (*ii)=ceil(*ii/600.0)*600;
               json_row_time.values.insert(json_row_time.values.end(), row_begin_iterator, row_end_iterator);
               json_matrix_time.values.push_back(json_row_time);
               
