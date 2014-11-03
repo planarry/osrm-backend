@@ -1775,7 +1775,7 @@ showTransitMarkers: function(a) {
 							}
 							else cur=a.backward[k][cur].parent
 						}
-						/*if(b2)*/ break; 
+						break; 
 					}
 		if(b1 && b2) 
 		{
@@ -1791,6 +1791,7 @@ showTransitMarkers: function(a) {
 			if(a.backward[j][a.backward[j][i].parent])
 				window.transitMarkers.push(L.polyline([a.backward[j][i], a.backward[j][a.backward[j][i].parent]],{color:color, weight:1}).addTo(OSRM.G.map))
 	}
+	clusterize();
 },
         getRoute: function(a) {
 			//OSRM.JSONP.call(OSRM.Routing._buildCall()+'&compression=false', function(a){console.log(a.route_geometry)}, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT, "log");
@@ -2474,3 +2475,157 @@ showTransitMarkers: function(a) {
             }, 0)
         }
     };
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+function compare_tree(a,b){
+	if(a<glob.n && b<glob.n)
+	{
+		ok_count=0;
+		for(var i in glob.backward[a]) 
+			if(glob.backward[b][i]) ++ok_count;
+		for(var i in glob.forward[a]) 
+			if(glob.forward[b][i]) ++ok_count;
+		return [ok_count, Object.keys(glob.forward[a]).length+Object.keys(glob.backward[a]).length-ok_count, Object.keys(glob.forward[b]).length+Object.keys(glob.backward[b]).length-ok_count]
+	}
+	else
+	{
+		var cl=unpackCluster(a).concat(unpackCluster(b));
+		min=[1, 1000, 1000];
+		for(var i in cl)
+			for(var j in cl){
+					var t=compare_tree(cl[i], cl[j])
+					if(balance(min)>balance(t))
+						min=t;
+				}
+		return min;
+	}
+}
+A=[0];
+function balance(arr){
+	return  Math.round(
+		Math.pow(arr[1]*arr[2]/(arr[1]+arr[2]+1), A[0]) *
+		Math.pow(0.01*arr[0], A[0]-1)
+	*10000)/10000;
+}
+length_map={};
+cluster_index=[];
+cur_clusters=[];
+merging_history=[];
+function clusterize(){
+	length_map={};
+	cluster_index=[];
+	cur_clusters=[];
+	merging_history=[];
+	for(var i=0;i<glob.n;++i) {
+		length_map[i]={};
+		for(var j=0;j<i;++j)
+			length_map[i][j]=compare_tree(i,j);
+		cur_clusters.push(i)
+		cluster_index[i]=[i];
+	}
+	while(cur_clusters.length>1)
+	{
+		min=[1, 0];
+		for(var i in cur_clusters)
+			for(var j in cur_clusters)
+				if(cur_clusters[j]<cur_clusters[i] && balance(length_map[cur_clusters[min[0]]][cur_clusters[min[1]]])>balance(length_map[cur_clusters[i]][cur_clusters[j]]))
+					min=[i,j];
+		a=cur_clusters.splice(min[0], 1)[0];
+		b=cur_clusters.splice(min[1], 1)[0];
+		c=cluster_index.push([a, b]) - 1;
+		cluster_index[c].balance=balance(length_map[a][b]);
+		cur_clusters.push(c);
+		merging_history.push([a,b,c]);
+		console.log('merging',a,'and',b,'into',c,'with difference matrix',length_map[a][b],'and balance',balance(length_map[a][b]));
+		/*glob.backward[c]={};
+		for(var i in glob.backward[a])
+			if(glob.backward[b][i]) {
+				glob.backward[c][i]={};
+				if(glob.backward[a][i].parent==glob.backward[b][i].parent)
+					glob.backward[c][i].parent=glob.backward[a][i].parent;
+				else 
+					glob.backward[c][i].parent=0;
+			}
+		glob.forward[c]={};
+		for(var i in glob.forward[a])
+			if(glob.forward[b][i]) {
+				glob.forward[c][i]={};
+				if(glob.forward[a][i].parent==glob.forward[b][i].parent)
+					glob.forward[c][i].parent=glob.forward[a][i].parent;
+				else
+					glob.forward[c][i].parent=0;
+			}*/
+		length_map[c]={};
+		for(var j=0;j<c;++j)
+			length_map[c][j]=compare_tree(c,j);
+	}
+	showClusterTree()
+}
+function unpackCluster(cur){
+	var cl=cluster_index[cur].splice(0);
+	var b=true;
+	while(b)
+	{
+		b=false;
+		for(var i=0; i<cl.length; ++i)
+		{
+			if(cl[i]>=glob.n)
+			{
+				var cur=cl.splice(i,1);
+				cl=cl.concat(cluster_index[cur]);
+				b=true;
+			}
+		}
+	}
+	return cl;
+}
+function showCluster(cur){
+	OSRM.Routing.clearTransitMarkers()
+	for(var i=0; i<glob.n; ++i)
+		OSRM.G.markers.route[i].marker.setOpacity(0.3);
+	var cl=unpackCluster(cur);
+	for(var i=0; i<cl.length; ++i)
+		OSRM.G.markers.route[cl[i]].marker.setOpacity(1);
+	return false;
+}
+function showClusterTree(){
+	var box=document.getElementById('clusters-box');
+	box.innerHTML=showClusterTreeLeaf(cur_clusters[0]);
+}
+function showClusterTreeLeaf(cur){
+	var text='<a href="#" onclick="return showCluster('+cur+')">'+cur+'</a>';
+	if(cur>=glob.n)
+	{
+		text+='<ul>';
+		for(var i=0;i<cluster_index[cur].length;i++)
+			text+='<li>'+showClusterTreeLeaf(cluster_index[cur][i])+'</li>';
+		text+='</ul>';
+	}
+	return text;
+}
+function showClusterHistory(){
+	var box=document.getElementById('clusters-box');
+	var text='<ul>';
+	for(var i=0;i<merging_history.length;i++) {
+		hi=merging_history[i];
+		text+='<li><a href="#" onclick="return showCluster('+hi[2]+')">'+hi[2]+'</a>=<a href="#" onclick="return showCluster('+hi[0]+')">'+hi[0]+'</a>+<a href="#" onclick="return showCluster('+hi[1]+')">'+hi[1]+'</a> ('+balance(length_map[hi[0]][hi[1]])+')</li>';
+	}
+	text+='</ul>';
+	box.innerHTML=text;
+}
