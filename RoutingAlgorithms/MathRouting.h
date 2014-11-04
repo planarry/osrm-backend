@@ -184,6 +184,9 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                         edge = super::facade->FindEdge(ed.id, ii.first);
                     else break;
                 } while(true);
+                JSON::Object temp_obj;
+                temp_obj.values["parent"] = bucket.parent;
+                temp_obj.values["distance"] = bucket.distance;
                 if(edge!=SPECIAL_EDGEID){
                     NodeID nbn_id;
                     if (!super::facade->EdgeIsCompressed(ed.id))
@@ -196,13 +199,12 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                         nbn_id = id_vector.back();
                     }
                     auto coord = super::facade->GetCoordinateOfNode(nbn_id);
-                    JSON::Object temp_obj;
-                    temp_obj.values["parent"] = bucket.parent;
-                    temp_obj.values["distance"] = bucket.distance;
+                    
                     temp_obj.values["lat"] = coord.lat / COORDINATE_PRECISION;
                     temp_obj.values["lon"] = coord.lon / COORDINATE_PRECISION;
-                    forward_point_objs_vector[bucket.point_id].values[IntToString(ii.first)]=temp_obj;
                 }
+                forward_point_objs_vector[bucket.point_id].values[IntToString(ii.first)]=temp_obj;
+                
             }
         for(const auto &ii : backward_search_space_with_buckets)
             for(const NodeBucket &bucket : ii.second)
@@ -216,6 +218,9 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                         edge = super::facade->FindEdge(ed.id, ii.first);
                     else break;
                 } while(true);
+                JSON::Object temp_obj;
+                temp_obj.values["parent"] = bucket.parent;
+                temp_obj.values["distance"] = bucket.distance;
                 if(edge!=SPECIAL_EDGEID){
                     NodeID nbn_id;
                     if (!super::facade->EdgeIsCompressed(ed.id))
@@ -228,13 +233,11 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                         nbn_id = id_vector.back();
                     }
                     auto coord = super::facade->GetCoordinateOfNode(nbn_id);
-                    JSON::Object temp_obj;
-                    temp_obj.values["parent"] = bucket.parent;
-                    temp_obj.values["distance"] = bucket.distance;
                     temp_obj.values["lat"] = coord.lat / COORDINATE_PRECISION;
                     temp_obj.values["lon"] = coord.lon / COORDINATE_PRECISION;
-                    backward_point_objs_vector[bucket.point_id].values[IntToString(ii.first)]=temp_obj;
-                }
+                }    
+                backward_point_objs_vector[bucket.point_id].values[IntToString(ii.first)]=temp_obj;
+                
             }
         for(int i=0;i<number_of_locations;++i)
         {

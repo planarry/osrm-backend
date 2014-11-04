@@ -1751,7 +1751,7 @@ showTransitMarkers: function(a) {
 	}
 	window.glob=a;
 	OSRM.Routing.clearTransitMarkers()
-	for(i in a.backward[0]) { 
+	/*for(i in a.backward[0]) { 
 		b1=true; 
 		b2=false;
 		for(j=0;j<a.n;++j)
@@ -1790,7 +1790,7 @@ showTransitMarkers: function(a) {
 		for(i in a.backward[j]) 
 			if(a.backward[j][a.backward[j][i].parent])
 				window.transitMarkers.push(L.polyline([a.backward[j][i], a.backward[j][a.backward[j][i].parent]],{color:color, weight:1}).addTo(OSRM.G.map))
-	}
+	}*/
 	clusterize();
 },
         getRoute: function(a) {
@@ -2492,139 +2492,187 @@ showTransitMarkers: function(a) {
 	
 	
 	
-	
-function compare_tree(a,b){
-	if(a<glob.n && b<glob.n)
-	{
-		ok_count=0;
-		for(var i in glob.backward[a]) 
-			if(glob.backward[b][i]) ++ok_count;
-		for(var i in glob.forward[a]) 
-			if(glob.forward[b][i]) ++ok_count;
-		return [ok_count, Object.keys(glob.forward[a]).length+Object.keys(glob.backward[a]).length-ok_count, Object.keys(glob.forward[b]).length+Object.keys(glob.backward[b]).length-ok_count]
-	}
-	else
-	{
-		var cl=unpackCluster(a).concat(unpackCluster(b));
-		min=[1, 1000, 1000];
-		for(var i in cl)
-			for(var j in cl){
-					var t=compare_tree(cl[i], cl[j])
-					if(balance(min)>balance(t))
-						min=t;
-				}
-		return min;
-	}
-}
-A=[0];
-function balance(arr){
-	return  Math.round(
-		Math.pow(arr[1]*arr[2]/(arr[1]+arr[2]+1), A[0]) *
-		Math.pow(0.01*arr[0], A[0]-1)
-	*10000)/10000;
-}
-length_map={};
-cluster_index=[];
-cur_clusters=[];
-merging_history=[];
-function clusterize(){
-	length_map={};
-	cluster_index=[];
-	cur_clusters=[];
-	merging_history=[];
-	for(var i=0;i<glob.n;++i) {
-		length_map[i]={};
-		for(var j=0;j<i;++j)
-			length_map[i][j]=compare_tree(i,j);
-		cur_clusters.push(i)
-		cluster_index[i]=[i];
-	}
-	while(cur_clusters.length>1)
-	{
-		min=[1, 0];
-		for(var i in cur_clusters)
-			for(var j in cur_clusters)
-				if(cur_clusters[j]<cur_clusters[i] && balance(length_map[cur_clusters[min[0]]][cur_clusters[min[1]]])>balance(length_map[cur_clusters[i]][cur_clusters[j]]))
-					min=[i,j];
-		a=cur_clusters.splice(min[0], 1)[0];
-		b=cur_clusters.splice(min[1], 1)[0];
-		c=cluster_index.push([a, b]) - 1;
-		cluster_index[c].balance=balance(length_map[a][b]);
-		cur_clusters.push(c);
-		merging_history.push([a,b,c]);
-		console.log('merging',a,'and',b,'into',c,'with difference matrix',length_map[a][b],'and balance',balance(length_map[a][b]));
-		/*glob.backward[c]={};
-		for(var i in glob.backward[a])
+INT_MAX=2147483647;
+
+function compare_three_tree(a,b,c){
+	ok_count=0;
+	a_count=0;
+	b_count=0;
+	for(var i in glob.forward[c]) {
+		if(glob.backward[a][i]) {
+			++a_count;
 			if(glob.backward[b][i]) {
-				glob.backward[c][i]={};
-				if(glob.backward[a][i].parent==glob.backward[b][i].parent)
-					glob.backward[c][i].parent=glob.backward[a][i].parent;
-				else 
-					glob.backward[c][i].parent=0;
-			}
-		glob.forward[c]={};
-		for(var i in glob.forward[a])
-			if(glob.forward[b][i]) {
-				glob.forward[c][i]={};
-				if(glob.forward[a][i].parent==glob.forward[b][i].parent)
-					glob.forward[c][i].parent=glob.forward[a][i].parent;
-				else
-					glob.forward[c][i].parent=0;
-			}*/
-		length_map[c]={};
-		for(var j=0;j<c;++j)
-			length_map[c][j]=compare_tree(c,j);
-	}
-	showClusterTree()
-}
-function unpackCluster(cur){
-	var cl=cluster_index[cur].splice(0);
-	var b=true;
-	while(b)
-	{
-		b=false;
-		for(var i=0; i<cl.length; ++i)
-		{
-			if(cl[i]>=glob.n)
-			{
-				var cur=cl.splice(i,1);
-				cl=cl.concat(cluster_index[cur]);
-				b=true;
+				++ok_count;
+				++b_count;
 			}
 		}
+		else if(glob.backward[b][i])
+			++b_count;
 	}
-	return cl;
+	return max(a_count, b_count) - ok_count;
 }
-function showCluster(cur){
+function compare_tree(a,b){
+	ok_count=0;
+	str_ok_count=0;
+	min_dist=INT_MAX;
+	for(var i in glob.backward[b]) {
+		if(glob.backward[a][i]) ++ok_count;
+		if(glob.forward[a][i]){
+			++str_ok_count;
+			if(min_dist>glob.forward[a][i].distance+glob.backward[b][i].distance)
+				min_dist=glob.forward[a][i].distance+glob.backward[b][i].distance;
+		}
+	}
+	return [ok_count, Math.abs(min_dist), Object.keys(glob.backward[a]).length, Object.keys(glob.backward[b]).length, str_ok_count];
+}
+function max(x1,x2) {
+	return x1>x2?x1:x2;
+}
+function balance(arr){
+	return  max(arr[2],arr[3])/arr[0]+P.balance*arr[1];
+}
+P={balance:0.001, nearest_count_radius:10, max_chains_from_point:INT_MAX,chain_balance:0.9};
+passing_map={};
+chains=[];
+points_heap=[];
+use_count=[];
+function add_chain_re(chain_pull, chain) {
+	console.log(chain);
+	var next_points=[];
+	var new_next_points=[];
+	for(var i in passing_map[chain[chain.length-1]])
+		if(chain.indexOf(i-0)==-1) next_points.push(i-0);
+	if(next_points.length<3) new_next_points=next_points;
+	else {
+		var mean=0;
+		for(var i=1; i<next_points.length; ++i)
+			mean+=compare_three_tree(next_points[0],next_points[i],chain[chain.length-1])
+		mean/=next_points.length-1;
+		new_next_points.push(next_points[0]);
+		for(var i=1; i<next_points.length; ++i) {
+			var add=true;
+			for(var j=0; j<new_next_points.length; ++j)
+				if(compare_three_tree(new_next_points[j],next_points[i],chain[chain.length-1])<mean) {
+						add=false;
+						if(passing_map[chain[chain.length-1]][new_next_points[j]]>passing_map[chain[chain.length-1]][next_points[i]]) {
+							new_next_points[j]=next_points[i];
+							break;
+						}
+					}
+			if(add)
+				new_next_points.push(next_points[i]);
+		}
+	}
+		
+	if(new_next_points.length>0)
+		for(var i in new_next_points) {
+			var new_chain=chain.slice(0);
+			new_chain.push(new_next_points[i]);
+			new_chain.passing=chain.passing.slice(0);
+			new_chain.passing.push(passing_map[chain[chain.length-1]][new_next_points[i]]);
+			new_chain.passing_sum=chain.passing_sum+passing_map[chain[chain.length-1]][new_next_points[i]];
+			add_chain_re(chain_pull, new_chain)
+		}
+	else
+		chain_pull.push(chain);
+}
+function clusterize(){
+	passing_map={};
+	//passing_map[glob.n]={};
+	//passing_map[glob.n][glob.n]=INT_MAX;
+	chains=[];
+	for(var i=0;i<glob.n;++i) {
+		passing_map[i]={};
+		var temp=[]
+		for(var j=0;j<glob.n;++j)
+			if(i != j) 
+				temp.push([j, balance(compare_tree(i,j))]);
+		temp.sort(function(a,b){return a[1]-b[1]})
+		temp=temp.slice(0, P.nearest_count_radius);
+		for(var j=0;j<temp.length;++j)
+			passing_map[i][temp[j][0]]=temp[j][1];
+	}
+	for(var a=0; a<glob.n; ++a) {
+		var chain_pull=[];
+		var base_chain=[a];
+		base_chain.passing=[];
+		base_chain.passing_sum=0;
+		add_chain_re(chain_pull, base_chain);
+		chain_pull.sort(function(a,b) { return P.chain_balance*(a.length-b.length)+(1-P.chain_balance)*(a.passing_sum-b.passing_sum) });
+		chains=chains.concat(chain_pull.slice(0, P.max_chains_from_point));
+	}
+	/*while(points_heap.length>1)
+	{
+		var min=[0, 1];
+		for(var i in points_heap)
+			for(var j in points_heap)
+				if(i != j && passing_map[points_heap[min[0]]][points_heap[min[1]]] > passing_map[points_heap[i]][points_heap[j]])
+					min=[i,j];
+		if(passing_map[points_heap[min[0]]][points_heap[min[1]]]>P.start_threshold)
+			break;
+		a=points_heap[min[0]];
+		b=points_heap[min[1]];
+		points_heap.splice(min[0], 1);
+		var chain=[a, b];
+		chain.firstB=passing_map[a][b];
+		chain.starter=a;
+		var lastB=passing_map[a][b];
+		while(lastB < P.grow_threshold) {
+			var min_end=glob.n;
+			for(var i=0; i<glob.n; ++i)
+				if(chain.indexOf(i)==-1 && 
+					use_count[i]<P.use_limit &&
+					passing_map[chain[chain.length-1]][min_end] > passing_map[chain[chain.length-1]][i])
+						min_end=i;
+			var min_beg=glob.n;
+			for(var i=0; i<glob.n; ++i)
+				if(chain.indexOf(i)==-1 && 
+					use_count[i]<P.use_limit &&
+					passing_map[min_beg][chain[0]] > passing_map[i][chain[0]])
+						min_beg=i;	
+			if(passing_map[min_beg][chain[0]]<passing_map[chain[chain.length-1]][min_end]){
+				if(passing_map[min_beg][chain[0]] < P.grow_threshold) {
+					chain.unshift(min_beg);
+					lastB=passing_map[min_beg][chain[0]];
+				}
+				else break;
+			}
+			else {
+				if(passing_map[chain[chain.length-1]][min_end] < P.grow_threshold) {
+					chain.push(min_end);
+					lastB=passing_map[chain[chain.length-1]][min_end];
+				}
+				else break;
+			}
+		}
+		if(chain.length<P.min_chain) continue;
+		for(var i in chain)
+		 if(++use_count[i] >= P.use_limit)
+		 {
+			var index=points_heap.indexOf(i)
+			if(index!=-1)
+				points_heap.splice(index)
+		}
+		chain.lastB=lastB;
+		chains.push(chain);
+	}*/
+	showChains()
+}
+function showChain(cur){
 	OSRM.Routing.clearTransitMarkers()
 	for(var i=0; i<glob.n; ++i)
 		OSRM.G.markers.route[i].marker.setOpacity(0.3);
-	var cl=unpackCluster(cur);
-	for(var i=0; i<cl.length; ++i)
-		OSRM.G.markers.route[cl[i]].marker.setOpacity(1);
+	for(var i=0; i<chains[cur].length; ++i)
+		OSRM.G.markers.route[chains[cur][i]].marker.setOpacity(1);
 	return false;
 }
-function showClusterTree(){
-	var box=document.getElementById('clusters-box');
-	box.innerHTML=showClusterTreeLeaf(cur_clusters[0]);
-}
-function showClusterTreeLeaf(cur){
-	var text='<a href="#" onclick="return showCluster('+cur+')">'+cur+'</a>';
-	if(cur>=glob.n)
-	{
-		text+='<ul>';
-		for(var i=0;i<cluster_index[cur].length;i++)
-			text+='<li>'+showClusterTreeLeaf(cluster_index[cur][i])+'</li>';
-		text+='</ul>';
-	}
-	return text;
-}
-function showClusterHistory(){
+function showChains(){
 	var box=document.getElementById('clusters-box');
 	var text='<ul>';
-	for(var i=0;i<merging_history.length;i++) {
-		hi=merging_history[i];
-		text+='<li><a href="#" onclick="return showCluster('+hi[2]+')">'+hi[2]+'</a>=<a href="#" onclick="return showCluster('+hi[0]+')">'+hi[0]+'</a>+<a href="#" onclick="return showCluster('+hi[1]+')">'+hi[1]+'</a> ('+balance(length_map[hi[0]][hi[1]])+')</li>';
+	for(var i=0;i<chains.length;i++) {
+		text+='<li><a href="#" onclick="return showChain('+i+')">'+i+'</a>=';
+		text+=chains[i].map(function(i,_,arr){return i==arr.starter?'<b>'+i+'</b>':i}).join('+');
+		text+=' ('+chains[i].passing_sum/chains[i].length+')</li>';
 	}
 	text+='</ul>';
 	box.innerHTML=text;
