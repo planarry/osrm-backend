@@ -73,7 +73,7 @@ setActive: function(button_id) {
 
 //draw GUI and register click events
 show: function() {
-	var buttons = OSRM.RoutingAlternatives._buttons;
+	/*var buttons = OSRM.RoutingAlternatives._buttons;
 	var data = "";
 	// draw clickable buttons
 	for(var i=0, size=OSRM.G.alternative_count; i<size && OSRM.G.response.alternative_summaries; i++) {
@@ -99,7 +99,7 @@ show: function() {
 		document.getElementById(buttons[i].id).onclick = function (button_id) { return function() {OSRM.RoutingAlternatives._click(button_id); }; }(i) ;
 		document.getElementById(buttons[i].id).onmouseover = function (button_id) { return function() {OSRM.RoutingAlternatives._mouseover(button_id); }; } (i);
 		document.getElementById(buttons[i].id).onmouseout = function (button_id) { return function() {OSRM.RoutingAlternatives._mouseout(button_id); }; } (i);
-	}
+	}*/
 },
 
 // mouse events on buttons

@@ -66,9 +66,9 @@ setSource: function(position) {
 setTarget: function(position) {
 	// target node is always last node
 	if( this.route[this.route.length-1] && this.route[ this.route.length-1 ].label == OSRM.C.TARGET_LABEL )
-		this.route[this.route.length-1].setPosition(position);
-	else
-		this.route.splice( this.route.length,0, new OSRM.RouteMarker(OSRM.C.TARGET_LABEL, {draggable:true,icon:OSRM.G.icons['marker-target'],dragicon:OSRM.G.icons['marker-target-drag']}, position));
+        this.route[ this.route.length-1 ].label=OSRM.C.VIA_LABEL
+	//else
+	this.route.splice( this.route.length,0, new OSRM.RouteMarker(OSRM.C.TARGET_LABEL, {draggable:true,icon:OSRM.G.icons['marker-target'],dragicon:OSRM.G.icons['marker-target-drag']}, position));
 	document.getElementById('gui-delete-target').style.visibility = "visible";
 
 	// setting initial vias (not so nice, as showing is done here too)	
