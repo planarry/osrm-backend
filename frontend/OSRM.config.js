@@ -20,8 +20,8 @@ or see http://www.gnu.org/licenses/agpl.txt.
 
 OSRM.DEFAULTS = {
 		ROUTING_ENGINES: [
-			{	url: 'http://router.project-osrm.org/viaroute',
-				timestamp: 'http://router.project-osrm.org/timestamp',
+			{	url: 'http://192.168.9.29:5000/viaroute',
+				timestamp: 'http://192.168.9.29:5000/timestamp',
 				metric: 0,
 				label: 'ENGINE_0',
 			}
@@ -57,7 +57,7 @@ OSRM.DEFAULTS = {
 	LANUGAGE_ONDEMAND_RELOADING: true,
 	LANGUAGE_SUPPORTED: [ 
 		{encoding:"en", name:"English"},
-		{encoding:"bg", name:"Български"},
+/*		{encoding:"bg", name:"Български"},
 		{encoding:"ca", name:"Català"},
 		{encoding:"cs", name:"Česky"},
 		{encoding:"de", name:"Deutsch"},
@@ -74,12 +74,12 @@ OSRM.DEFAULTS = {
 		{encoding:"nb", name:"Bokmål"},
 		{encoding:"pl", name:"Polski"},
 		{encoding:"pt", name:"Portugues"},
-		{encoding:"ro", name:"Română"},
+		{encoding:"ro", name:"Română"},*/
 		{encoding:"ru", name:"Русский"},
-		{encoding:"sk", name:"Slovensky"},
+/*		{encoding:"sk", name:"Slovensky"},
 		{encoding:"sv", name:"Svenska"},
 		{encoding:"ta", name:"தமிழ்"},
-		{encoding:"tr", name:"Türkçe"},
+		{encoding:"tr", name:"Türkçe"},*/
 		{encoding:"uk", name:"Українська"}
 	],
 		
@@ -127,9 +127,9 @@ OSRM.DEFAULTS = {
 	],
 
 	NOTIFICATIONS: {
-		LOCALIZATION:	1800000,	// 30min
-		CLICKING: 		60000,		// 1min
-		DRAGGING: 		120000,		// 2min 
+		LOCALIZATION:	false,  	// 30min
+		CLICKING: 		false,		// 1min
+		DRAGGING: 		false,		// 2min
 		MAINTENANCE:	false
 	},
 	OVERRIDE_MAINTENANCE_NOTIFICATION_HEADER: undefined,
