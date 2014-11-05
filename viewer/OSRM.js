@@ -2531,30 +2531,79 @@ function max(x1,x2) {
 function balance(arr){
 	return  max(arr[2],arr[3])/arr[0]+P.balance*arr[1];
 }
-P={balance:0.001, nearest_count_radius:10, max_chains_from_point:INT_MAX,chain_balance:0.9};
+P={balance:1, nearest_count_radius:2, max_chains_from_point:INT_MAX,chain_balance:0.9};
 passing_map={};
 chains=[];
 points_heap=[];
-use_count=[];
+glob_pulls=[];
+priority=[];
 function add_chain_re(chain_pull, chain) {
+	var cur_node=chain[chain.length-1]
+	var from_cache=[];
+	if(glob_pulls[cur_node])
+		for(var i=0;i<glob_pulls[cur_node].length;++i) {
+			var ok=true;
+			for(var j=0; ok && j<chain.length-1; ++j)	
+				for(var k=0;k<glob_pulls[cur_node][i].length;++k)
+					if(chain[j]==glob_pulls[cur_node][i][k]) {
+						ok=false;
+						break;
+					}
+			if(ok)
+				for(var k in glob_pulls[cur_node][i].stopers) {
+					var stoper_in_chain=false;
+					for(var j=0; j<chain.length-1; ++j)
+						if(chain[j]==(k-0)) {
+							stoper_in_chain=true;
+							break;
+						}
+					if(!stoper_in_chain) {
+						ok=false;
+						break;
+					}
+				}
+			if(ok) 
+				from_cache.push(i);
+		}
+	if(from_cache.length) 
+	{
+		for(var i=0;i<from_cache.length;++i){
+		/*if(from_cache.length>1) {
+			chain.cont=from_cache;
+			chain_pull.push(chain);
+		}
+		else{
+			var i=from_cache[0];*/
+			var new_chain=chain.concat(glob_pulls[cur_node][i]);
+			new_chain.stopers={};
+			for (var k in chain.stopers) { new_chain.stopers[k] = chain.stopers[k]; }
+			for (var k in glob_pulls[cur_node][i].stopers) { new_chain.stopers[k] = glob_pulls[cur_node][i].stopers[k]; }
+			new_chain.passing=chain.passing.concat(glob_pulls[cur_node][i].passing);
+			new_chain.passing_sum=chain.passing_sum+glob_pulls[cur_node][i].passing_sum;
+			chain_pull.push(new_chain);
+		}
+		return;
+	}
 	console.log(chain);
-	var next_points=[];
+	//var next_points=[];
 	var new_next_points=[];
-	for(var i in passing_map[chain[chain.length-1]])
-		if(chain.indexOf(i-0)==-1) next_points.push(i-0);
-	if(next_points.length<3) new_next_points=next_points;
+	//var cur_stopers=JSON.parse(JSON.stringify(chain.stopers))
+	for(var i in passing_map[cur_node])
+		if(chain.indexOf(i-0)==-1) new_next_points.push(i-0);
+		else chain.stopers[i]=true;
+	/*if(next_points.length<3) new_next_points=next_points;
 	else {
 		var mean=0;
 		for(var i=1; i<next_points.length; ++i)
-			mean+=compare_three_tree(next_points[0],next_points[i],chain[chain.length-1])
+			mean+=compare_three_tree(next_points[0],next_points[i],cur_node)
 		mean/=next_points.length-1;
 		new_next_points.push(next_points[0]);
 		for(var i=1; i<next_points.length; ++i) {
 			var add=true;
 			for(var j=0; j<new_next_points.length; ++j)
-				if(compare_three_tree(new_next_points[j],next_points[i],chain[chain.length-1])<mean) {
+				if(compare_three_tree(new_next_points[j],next_points[i],cur_node)<mean) {
 						add=false;
-						if(passing_map[chain[chain.length-1]][new_next_points[j]]>passing_map[chain[chain.length-1]][next_points[i]]) {
+						if(passing_map[cur_node][new_next_points[j]]>passing_map[cur_node][next_points[i]]) {
 							new_next_points[j]=next_points[i];
 							break;
 						}
@@ -2562,17 +2611,34 @@ function add_chain_re(chain_pull, chain) {
 			if(add)
 				new_next_points.push(next_points[i]);
 		}
-	}
+	}*/
 		
-	if(new_next_points.length>0)
+	if(new_next_points.length>0){
+		var cur_pull=[]
 		for(var i in new_next_points) {
 			var new_chain=chain.slice(0);
 			new_chain.push(new_next_points[i]);
+			new_chain.stopers=chain.stopers;
 			new_chain.passing=chain.passing.slice(0);
-			new_chain.passing.push(passing_map[chain[chain.length-1]][new_next_points[i]]);
-			new_chain.passing_sum=chain.passing_sum+passing_map[chain[chain.length-1]][new_next_points[i]];
-			add_chain_re(chain_pull, new_chain)
+			new_chain.passing.push(passing_map[cur_node][new_next_points[i]]);
+			new_chain.passing_sum=chain.passing_sum+passing_map[cur_node][new_next_points[i]];
+			add_chain_re(cur_pull, new_chain)
 		}
+		if(!glob_pulls[cur_node]) glob_pulls[cur_node]=[];
+		for(var i in cur_pull) {
+			chain_pull.push(cur_pull[i]);
+			var sub_chain=cur_pull[i].slice(chain.length);
+			sub_chain.stopers={};//JSON.parse(JSON.stringify(cur_pull[i].stopers));
+			for(var j=0;j<chain.length-1;++j)
+				if(cur_pull[i].stopers[chain[j]])
+					sub_chain.stopers[chain[j]]=true;
+			//for(var j=0;j<sub_chain.length;++j)
+			//		sub_chain.stopers[sub_chain[j]]=true;
+			sub_chain.passing=cur_pull[i].passing.slice(chain.passing.length);
+			sub_chain.passing_sum=cur_pull[i].passing_sum-chain.passing_sum;
+			glob_pulls[cur_node].push(sub_chain);
+		}
+	}
 	else
 		chain_pull.push(chain);
 }
@@ -2581,6 +2647,7 @@ function clusterize(){
 	//passing_map[glob.n]={};
 	//passing_map[glob.n][glob.n]=INT_MAX;
 	chains=[];
+glob_pulls=[];
 	for(var i=0;i<glob.n;++i) {
 		passing_map[i]={};
 		var temp=[]
@@ -2597,65 +2664,11 @@ function clusterize(){
 		var base_chain=[a];
 		base_chain.passing=[];
 		base_chain.passing_sum=0;
+		base_chain.stopers={};
 		add_chain_re(chain_pull, base_chain);
-		chain_pull.sort(function(a,b) { return P.chain_balance*(a.length-b.length)+(1-P.chain_balance)*(a.passing_sum-b.passing_sum) });
+		//chain_pull.sort(function(a,b) { return P.chain_balance*(a.length-b.length)+(1-P.chain_balance)*(a.passing_sum-b.passing_sum) });
 		chains=chains.concat(chain_pull.slice(0, P.max_chains_from_point));
 	}
-	/*while(points_heap.length>1)
-	{
-		var min=[0, 1];
-		for(var i in points_heap)
-			for(var j in points_heap)
-				if(i != j && passing_map[points_heap[min[0]]][points_heap[min[1]]] > passing_map[points_heap[i]][points_heap[j]])
-					min=[i,j];
-		if(passing_map[points_heap[min[0]]][points_heap[min[1]]]>P.start_threshold)
-			break;
-		a=points_heap[min[0]];
-		b=points_heap[min[1]];
-		points_heap.splice(min[0], 1);
-		var chain=[a, b];
-		chain.firstB=passing_map[a][b];
-		chain.starter=a;
-		var lastB=passing_map[a][b];
-		while(lastB < P.grow_threshold) {
-			var min_end=glob.n;
-			for(var i=0; i<glob.n; ++i)
-				if(chain.indexOf(i)==-1 && 
-					use_count[i]<P.use_limit &&
-					passing_map[chain[chain.length-1]][min_end] > passing_map[chain[chain.length-1]][i])
-						min_end=i;
-			var min_beg=glob.n;
-			for(var i=0; i<glob.n; ++i)
-				if(chain.indexOf(i)==-1 && 
-					use_count[i]<P.use_limit &&
-					passing_map[min_beg][chain[0]] > passing_map[i][chain[0]])
-						min_beg=i;	
-			if(passing_map[min_beg][chain[0]]<passing_map[chain[chain.length-1]][min_end]){
-				if(passing_map[min_beg][chain[0]] < P.grow_threshold) {
-					chain.unshift(min_beg);
-					lastB=passing_map[min_beg][chain[0]];
-				}
-				else break;
-			}
-			else {
-				if(passing_map[chain[chain.length-1]][min_end] < P.grow_threshold) {
-					chain.push(min_end);
-					lastB=passing_map[chain[chain.length-1]][min_end];
-				}
-				else break;
-			}
-		}
-		if(chain.length<P.min_chain) continue;
-		for(var i in chain)
-		 if(++use_count[i] >= P.use_limit)
-		 {
-			var index=points_heap.indexOf(i)
-			if(index!=-1)
-				points_heap.splice(index)
-		}
-		chain.lastB=lastB;
-		chains.push(chain);
-	}*/
 	showChains()
 }
 function showChain(cur){
@@ -2668,12 +2681,62 @@ function showChain(cur){
 }
 function showChains(){
 	var box=document.getElementById('clusters-box');
-	var text='<ul>';
+	var text='Выделить: <a href="#" onclick="return showAllMarkers()">все</a> <a href="#" onclick="return showMarkersByPriority()">значимые</a> <a href="#" onclick="return showMarkersByPriorityDesc()">редкие</a><ul>';
 	for(var i=0;i<chains.length;i++) {
 		text+='<li><a href="#" onclick="return showChain('+i+')">'+i+'</a>=';
 		text+=chains[i].map(function(i,_,arr){return i==arr.starter?'<b>'+i+'</b>':i}).join('+');
-		text+=' ('+chains[i].passing_sum/chains[i].length+')</li>';
+		text+=' ('+chains[i].passing_sum/chains[i].length+') '
+		if(chains[i].cont) text+=chains[i].cont.join();
+		text+='</li>';
 	}
 	text+='</ul>';
 	box.innerHTML=text;
+}
+function showAllMarkers(){
+	OSRM.Routing.clearTransitMarkers()
+	for(var i=0; i<glob.n; ++i)
+		OSRM.G.markers.route[i].marker.setOpacity(1);
+	return false;
+}
+function showMarkersByPriority(){
+	OSRM.Routing.clearTransitMarkers()
+	priority=[];
+	var max=0;
+	for(var i=0; i<glob.n; ++i)
+		priority[i]=0;
+	for(var i=0;i<chains.length;i++)
+		for(var j=0; j<chains[i].length; ++j)
+			if(max<++priority[chains[i][j]])
+				max=priority[chains[i][j]];
+	var min=priority[0];
+	for(var i=0; i<glob.n; ++i)
+		if(min>priority[i])
+			min=priority[i];
+	for(var i=0; i<glob.n; ++i)
+	{
+		OSRM.G.markers.route[i].marker.setOpacity((priority[i]-min)/(max-min)*0.8+0.2);
+		OSRM.G.markers.route[i].marker._icon.title=priority[i];
+	}
+	return false;
+}
+function showMarkersByPriorityDesc(){
+	OSRM.Routing.clearTransitMarkers()
+	priority=[];
+	var max=0;
+	for(var i=0; i<glob.n; ++i)
+		priority[i]=0;
+	for(var i=0;i<chains.length;i++)
+		for(var j=0; j<chains[i].length; ++j)
+			if(max<++priority[chains[i][j]])
+				max=priority[chains[i][j]];
+	var min=priority[0];
+	for(var i=0; i<glob.n; ++i)
+		if(min>priority[i])
+			min=priority[i];
+	for(var i=0; i<glob.n; ++i)
+	{
+		OSRM.G.markers.route[i].marker.setOpacity((1-(priority[i]-min)/(max-min))*0.8+0.2);
+		OSRM.G.markers.route[i].marker._icon.title=priority[i];
+	}
+	return false;
 }
