@@ -1203,7 +1203,7 @@ OSRM.VERSION = "0.1.11", OSRM.DATE = "131122", OSRM.CONSTANTS = {}, OSRM.DEFAULT
             this.initial_vias.reverse()
         },
         relabelViaMarkers: function() {
-            for (var a = 1, b = this.route.length - 1; b > a; a++) this.route[a].marker.setLabel(a)
+            for (var a = 0, b = this.route.length; b > a; a++) this.route[a].marker.setLabel(a)
         }
     }), OSRM.Route = function() {
         this._current_route = new OSRM.SimpleRoute("current", {
@@ -1733,69 +1733,9 @@ OSRM.VERSION = "0.1.11", OSRM.DATE = "131122", OSRM.CONSTANTS = {}, OSRM.DEFAULT
 			t+='</table>';
 			document.getElementById('length-table-box').innerHTML=t;
 		},
-clearTransitMarkers: function(){
-	for(i in window.transitMarkers)
-		OSRM.G.map.removeLayer(window.transitMarkers[i])
-	window.transitMarkers=[]
-	window.glob.min=[]
-},
-showTransitMarkers: function(a) {
-//OSRM.Routing.showTransitMarkers=function(a) {
-	function getRandomColor() {
-		var letters = '0123456789ABCDEF'.split('');
-		var color = '#';
-		for (var i = 0; i < 6; i++ ) {
-			color += letters[Math.floor(Math.random() * 16)];
-		}
-		return color;
-	}
-	window.glob=a;
-	OSRM.Routing.clearTransitMarkers()
-	/*for(i in a.backward[0]) { 
-		b1=true; 
-		b2=false;
-		for(j=0;j<a.n;++j)
-			if(!a.backward[j][i]) { 
-				b1=false; 
-				break; 
-			}
-		if(b1) 
-			for(j=0;j<a.n && !b2;++j)
-				for(k=0;k<a.n;++k)
-					if(!a.backward[j][a.backward[k][i].parent]) {
-						b2=true; 
-						cur=a.backward[k][i].parent;
-						while(a.backward[k][cur])
-						{
-						
-							if(a.backward[j][cur])
-							{
-								b2=false; 
-								break;
-							}
-							else cur=a.backward[k][cur].parent
-						}
-						break; 
-					}
-		if(b1 && b2) 
-		{
-			window.transitMarkers.push(L.marker(a.backward[0][i],{opacity: 0.5}).addTo(OSRM.G.map))
-			window.glob.min.push(i)
-		}
-	}
-	for(j=0;j<a.n;++j)
-	{
-		color = getRandomColor()
-		//console.log(j,color)
-		for(i in a.backward[j]) 
-			if(a.backward[j][a.backward[j][i].parent])
-				window.transitMarkers.push(L.polyline([a.backward[j][i], a.backward[j][a.backward[j][i].parent]],{color:color, weight:1}).addTo(OSRM.G.map))
-	}*/
-	clusterize();
-},
         getRoute: function(a) {
 			//OSRM.JSONP.call(OSRM.Routing._buildCall()+'&compression=false', function(a){console.log(a.route_geometry)}, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT, "log");
-			if(OSRM.G.markers.route.length > 0) OSRM.JSONP.call(OSRM.Routing._buildCall().replace('viaroute','math'), OSRM.Routing.showTransitMarkers, OSRM.Routing.clearTransitMarkers, OSRM.DEFAULTS.JSONP_TIMEOUT, "math")
+			if(OSRM.G.markers.route.length > 0) OSRM.JSONP.call(OSRM.Routing._buildCall().replace('viaroute','math'), showChains, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT, "math")
             return OSRM.G.markers.route.length < 2 ? (void OSRM.G.route.hideRoute(), OSRM.Routing.timeoutTables()) : (a = a || {}, OSRM.JSONP.clear("dragging"), OSRM.JSONP.clear("redraw"), OSRM.JSONP.clear("table"), OSRM.JSONP.clear("route"), void OSRM.JSONP.call(OSRM.Routing._buildCall() + "&instructions=true", OSRM.Routing.showRoute, OSRM.Routing.timeoutRoute, OSRM.DEFAULTS.JSONP_TIMEOUT, "route", a), OSRM.JSONP.call(OSRM.Routing._buildCall().replace('viaroute','table'), OSRM.Routing.showTables, OSRM.Routing.timeoutTables, OSRM.DEFAULTS.JSONP_TIMEOUT, "table"))
         },
         getRoute_Reversed: function() {
@@ -2492,251 +2432,278 @@ showTransitMarkers: function(a) {
 	
 	
 	
-INT_MAX=2147483647;
+// INT_MAX=2147483647;
 
-function compare_three_tree(a,b,c){
-	ok_count=0;
-	a_count=0;
-	b_count=0;
-	for(var i in glob.forward[c]) {
-		if(glob.backward[a][i]) {
-			++a_count;
-			if(glob.backward[b][i]) {
-				++ok_count;
-				++b_count;
-			}
-		}
-		else if(glob.backward[b][i])
-			++b_count;
-	}
-	return max(a_count, b_count) - ok_count;
-}
-function compare_tree(a,b){
-	ok_count=0;
-	str_ok_count=0;
-	min_dist=INT_MAX;
-	for(var i in glob.backward[b]) {
-		if(glob.backward[a][i]) ++ok_count;
-		if(glob.forward[a][i]){
-			++str_ok_count;
-			if(min_dist>glob.forward[a][i].distance+glob.backward[b][i].distance)
-				min_dist=glob.forward[a][i].distance+glob.backward[b][i].distance;
-		}
-	}
-	return [ok_count, Math.abs(min_dist), Object.keys(glob.backward[a]).length, Object.keys(glob.backward[b]).length, str_ok_count];
-}
-function max(x1,x2) {
-	return x1>x2?x1:x2;
-}
-function balance(arr){
-	return  max(arr[2],arr[3])/arr[0]+P.balance*arr[1];
-}
-P={balance:1, nearest_count_radius:2, max_chains_from_point:INT_MAX,chain_balance:0.9};
-passing_map={};
-chains=[];
-points_heap=[];
-glob_pulls=[];
-priority=[];
-function add_chain_re(chain_pull, chain) {
-	var cur_node=chain[chain.length-1]
-	var from_cache=[];
-	if(glob_pulls[cur_node])
-		for(var i=0;i<glob_pulls[cur_node].length;++i) {
-			var ok=true;
-			for(var j=0; ok && j<chain.length-1; ++j)	
-				for(var k=0;k<glob_pulls[cur_node][i].length;++k)
-					if(chain[j]==glob_pulls[cur_node][i][k]) {
-						ok=false;
-						break;
-					}
-			if(ok)
-				for(var k in glob_pulls[cur_node][i].stopers) {
-					var stoper_in_chain=false;
-					for(var j=0; j<chain.length-1; ++j)
-						if(chain[j]==(k-0)) {
-							stoper_in_chain=true;
-							break;
-						}
-					if(!stoper_in_chain) {
-						ok=false;
-						break;
-					}
-				}
-			if(ok) 
-				from_cache.push(i);
-		}
-	if(from_cache.length) 
-	{
-		for(var i=0;i<from_cache.length;++i){
-		/*if(from_cache.length>1) {
-			chain.cont=from_cache;
-			chain_pull.push(chain);
-		}
-		else{
-			var i=from_cache[0];*/
-			var new_chain=chain.concat(glob_pulls[cur_node][i]);
-			new_chain.stopers={};
-			for (var k in chain.stopers) { new_chain.stopers[k] = chain.stopers[k]; }
-			for (var k in glob_pulls[cur_node][i].stopers) { new_chain.stopers[k] = glob_pulls[cur_node][i].stopers[k]; }
-			new_chain.passing=chain.passing.concat(glob_pulls[cur_node][i].passing);
-			new_chain.passing_sum=chain.passing_sum+glob_pulls[cur_node][i].passing_sum;
-			chain_pull.push(new_chain);
-		}
-		return;
-	}
-	console.log(chain);
-	//var next_points=[];
-	var new_next_points=[];
-	//var cur_stopers=JSON.parse(JSON.stringify(chain.stopers))
-	for(var i in passing_map[cur_node])
-		if(chain.indexOf(i-0)==-1) new_next_points.push(i-0);
-		else chain.stopers[i]=true;
-	/*if(next_points.length<3) new_next_points=next_points;
-	else {
-		var mean=0;
-		for(var i=1; i<next_points.length; ++i)
-			mean+=compare_three_tree(next_points[0],next_points[i],cur_node)
-		mean/=next_points.length-1;
-		new_next_points.push(next_points[0]);
-		for(var i=1; i<next_points.length; ++i) {
-			var add=true;
-			for(var j=0; j<new_next_points.length; ++j)
-				if(compare_three_tree(new_next_points[j],next_points[i],cur_node)<mean) {
-						add=false;
-						if(passing_map[cur_node][new_next_points[j]]>passing_map[cur_node][next_points[i]]) {
-							new_next_points[j]=next_points[i];
-							break;
-						}
-					}
-			if(add)
-				new_next_points.push(next_points[i]);
-		}
-	}*/
+// function compare_three_tree(a,b,c){
+	// ok_count=0;
+	// a_count=0;
+	// b_count=0;
+	// for(var i in glob.forward[c]) {
+		// if(glob.backward[a][i]) {
+			// ++a_count;
+			// if(glob.backward[b][i]) {
+				// ++ok_count;
+				// ++b_count;
+			// }
+		// }
+		// else if(glob.backward[b][i])
+			// ++b_count;
+	// }
+	// return max(a_count, b_count) - ok_count;
+// }
+// function compare_tree(a,b){
+	// ok_count=0;
+	// str_ok_count=0;
+	// min_dist=INT_MAX;
+	// for(var i in glob.backward[b]) {
+		// if(glob.backward[a][i]) ++ok_count;
+		// if(glob.forward[a][i]){
+			// ++str_ok_count;
+			// if(min_dist>glob.forward[a][i].distance+glob.backward[b][i].distance)
+				// min_dist=glob.forward[a][i].distance+glob.backward[b][i].distance;
+		// }
+	// }
+	// return [ok_count, Math.abs(min_dist), Object.keys(glob.backward[a]).length, Object.keys(glob.backward[b]).length, str_ok_count];
+// }
+// function max(x1,x2) {
+	// return x1>x2?x1:x2;
+// }
+// function balance(arr){
+	// return  max(arr[2],arr[3])/arr[0]+P.balance*arr[1];
+// }
+// P={balance:1, nearest_count_radius:2, max_chains_from_point:INT_MAX,chain_balance:0.9};
+// passing_map={};
+// chains=[];
+// points_heap=[];
+// glob_pulls=[];
+// priority=[];
+// function add_chain_re(chain_pull, chain) {
+	// var cur_node=chain[chain.length-1]
+	// var from_cache=[];
+	// if(glob_pulls[cur_node])
+		// for(var i=0;i<glob_pulls[cur_node].length;++i) {
+			// var ok=true;
+			// for(var j=0; ok && j<chain.length-1; ++j)	
+				// for(var k=0;k<glob_pulls[cur_node][i].length;++k)
+					// if(chain[j]==glob_pulls[cur_node][i][k]) {
+						// ok=false;
+						// break;
+					// }
+			// if(ok)
+				// for(var k in glob_pulls[cur_node][i].stopers) {
+					// var stoper_in_chain=false;
+					// for(var j=0; j<chain.length-1; ++j)
+						// if(chain[j]==(k-0)) {
+							// stoper_in_chain=true;
+							// break;
+						// }
+					// if(!stoper_in_chain) {
+						// ok=false;
+						// break;
+					// }
+				// }
+			// if(ok) 
+				// from_cache.push(i);
+		// }
+	// if(from_cache.length) 
+	// {
+		// //for(var i=0;i<from_cache.length;++i){
+		// if(from_cache.length>1) {
+			// chain.cont=from_cache;
+			// chain_pull.push(chain);
+		// }
+		// else{
+			// var i=from_cache[0];
+			// var new_chain=chain.concat(glob_pulls[cur_node][i]);
+			// new_chain.stopers={};
+			// for (var k in chain.stopers) { new_chain.stopers[k] = chain.stopers[k]; }
+			// for (var k in glob_pulls[cur_node][i].stopers) { new_chain.stopers[k] = glob_pulls[cur_node][i].stopers[k]; }
+			// new_chain.passing=chain.passing.concat(glob_pulls[cur_node][i].passing);
+			// new_chain.passing_sum=chain.passing_sum+glob_pulls[cur_node][i].passing_sum;
+			// chain_pull.push(new_chain);
+		// }
+		// return;
+	// }
+	// console.log(chain);
+	// //var next_points=[];
+	// var new_next_points=[];
+	// //var cur_stopers=JSON.parse(JSON.stringify(chain.stopers))
+	// for(var i in passing_map[cur_node])
+		// if(chain.indexOf(i-0)==-1) new_next_points.push(i-0);
+		// else chain.stopers[i]=true;
+	// /*if(next_points.length<3) new_next_points=next_points;
+	// else {
+		// var mean=0;
+		// for(var i=1; i<next_points.length; ++i)
+			// mean+=compare_three_tree(next_points[0],next_points[i],cur_node)
+		// mean/=next_points.length-1;
+		// new_next_points.push(next_points[0]);
+		// for(var i=1; i<next_points.length; ++i) {
+			// var add=true;
+			// for(var j=0; j<new_next_points.length; ++j)
+				// if(compare_three_tree(new_next_points[j],next_points[i],cur_node)<mean) {
+						// add=false;
+						// if(passing_map[cur_node][new_next_points[j]]>passing_map[cur_node][next_points[i]]) {
+							// new_next_points[j]=next_points[i];
+							// break;
+						// }
+					// }
+			// if(add)
+				// new_next_points.push(next_points[i]);
+		// }
+	// }*/
 		
-	if(new_next_points.length>0){
-		var cur_pull=[]
-		for(var i in new_next_points) {
-			var new_chain=chain.slice(0);
-			new_chain.push(new_next_points[i]);
-			new_chain.stopers=chain.stopers;
-			new_chain.passing=chain.passing.slice(0);
-			new_chain.passing.push(passing_map[cur_node][new_next_points[i]]);
-			new_chain.passing_sum=chain.passing_sum+passing_map[cur_node][new_next_points[i]];
-			add_chain_re(cur_pull, new_chain)
-		}
-		if(!glob_pulls[cur_node]) glob_pulls[cur_node]=[];
-		for(var i in cur_pull) {
-			chain_pull.push(cur_pull[i]);
-			var sub_chain=cur_pull[i].slice(chain.length);
-			sub_chain.stopers={};//JSON.parse(JSON.stringify(cur_pull[i].stopers));
-			for(var j=0;j<chain.length-1;++j)
-				if(cur_pull[i].stopers[chain[j]])
-					sub_chain.stopers[chain[j]]=true;
-			//for(var j=0;j<sub_chain.length;++j)
-			//		sub_chain.stopers[sub_chain[j]]=true;
-			sub_chain.passing=cur_pull[i].passing.slice(chain.passing.length);
-			sub_chain.passing_sum=cur_pull[i].passing_sum-chain.passing_sum;
-			glob_pulls[cur_node].push(sub_chain);
-		}
-	}
-	else
-		chain_pull.push(chain);
-}
-function clusterize(){
-	passing_map={};
-	//passing_map[glob.n]={};
-	//passing_map[glob.n][glob.n]=INT_MAX;
-	chains=[];
-glob_pulls=[];
-	for(var i=0;i<glob.n;++i) {
-		passing_map[i]={};
-		var temp=[]
-		for(var j=0;j<glob.n;++j)
-			if(i != j) 
-				temp.push([j, balance(compare_tree(i,j))]);
-		temp.sort(function(a,b){return a[1]-b[1]})
-		temp=temp.slice(0, P.nearest_count_radius);
-		for(var j=0;j<temp.length;++j)
-			passing_map[i][temp[j][0]]=temp[j][1];
-	}
-	for(var a=0; a<glob.n; ++a) {
-		var chain_pull=[];
-		var base_chain=[a];
-		base_chain.passing=[];
-		base_chain.passing_sum=0;
-		base_chain.stopers={};
-		add_chain_re(chain_pull, base_chain);
-		//chain_pull.sort(function(a,b) { return P.chain_balance*(a.length-b.length)+(1-P.chain_balance)*(a.passing_sum-b.passing_sum) });
-		chains=chains.concat(chain_pull.slice(0, P.max_chains_from_point));
-	}
-	showChains()
-}
-function showChain(cur){
-	OSRM.Routing.clearTransitMarkers()
-	for(var i=0; i<glob.n; ++i)
-		OSRM.G.markers.route[i].marker.setOpacity(0.3);
-	for(var i=0; i<chains[cur].length; ++i)
-		OSRM.G.markers.route[chains[cur][i]].marker.setOpacity(1);
-	return false;
-}
-function showChains(){
+	// if(new_next_points.length>0){
+		// var cur_pull=[]
+		// for(var i in new_next_points) {
+			// var new_chain=chain.slice(0);
+			// new_chain.push(new_next_points[i]);
+			// new_chain.stopers=chain.stopers;
+			// new_chain.passing=chain.passing.slice(0);
+			// new_chain.passing.push(passing_map[cur_node][new_next_points[i]]);
+			// new_chain.passing_sum=chain.passing_sum+passing_map[cur_node][new_next_points[i]];
+			// add_chain_re(cur_pull, new_chain)
+		// }
+		// if(!glob_pulls[cur_node]) glob_pulls[cur_node]=[];
+		// for(var i in cur_pull) {
+			// chain_pull.push(cur_pull[i]);
+			// var sub_chain=cur_pull[i].slice(chain.length);
+			// sub_chain.stopers={};//JSON.parse(JSON.stringify(cur_pull[i].stopers));
+			// for(var j=0;j<chain.length-1;++j)
+				// if(cur_pull[i].stopers[chain[j]])
+					// sub_chain.stopers[chain[j]]=true;
+			// //for(var j=0;j<sub_chain.length;++j)
+			// //		sub_chain.stopers[sub_chain[j]]=true;
+			// sub_chain.passing=cur_pull[i].passing.slice(chain.passing.length);
+			// sub_chain.passing_sum=cur_pull[i].passing_sum-chain.passing_sum;
+			// glob_pulls[cur_node].push(sub_chain);
+		// }
+	// }
+	// else
+		// chain_pull.push(chain);
+// }
+// function clusterize(){
+
+	// passing_map={};
+	// //passing_map[glob.n]={};
+	// //passing_map[glob.n][glob.n]=INT_MAX;
+	// chains=[];
+// glob_pulls=[];
+	// for(var i=0;i<glob.n;++i) {
+		// passing_map[i]={};
+		// var temp=[]
+		// for(var j=0;j<glob.n;++j)
+			// if(i != j) 
+				// temp.push([j, balance(compare_tree(i,j))]);
+		// temp.sort(function(a,b){return a[1]-b[1]})
+		// temp=temp.slice(0, P.nearest_count_radius);
+		// for(var j=0;j<temp.length;++j)
+			// passing_map[i][temp[j][0]]=temp[j][1];
+	// }
+	// for(var a=0; a<glob.n; ++a) {
+		// var chain_pull=[];
+		// var base_chain=[a];
+		// base_chain.passing=[];
+		// base_chain.passing_sum=0;
+		// base_chain.stopers={};
+		// add_chain_re(chain_pull, base_chain);
+		// //chain_pull.sort(function(a,b) { return P.chain_balance*(a.length-b.length)+(1-P.chain_balance)*(a.passing_sum-b.passing_sum) });
+		// chains=chains.concat(chain_pull.slice(0, P.max_chains_from_point));
+	// }
+	// showChains()
+// }
+function showChains(a){
+	window.glob=a
+	window.chains=window.glob.chains;
 	var box=document.getElementById('clusters-box');
 	var text='Выделить: <a href="#" onclick="return showAllMarkers()">все</a> <a href="#" onclick="return showMarkersByPriority()">значимые</a> <a href="#" onclick="return showMarkersByPriorityDesc()">редкие</a><ul>';
 	for(var i=0;i<chains.length;i++) {
 		text+='<li><a href="#" onclick="return showChain('+i+')">'+i+'</a>=';
-		text+=chains[i].map(function(i,_,arr){return i==arr.starter?'<b>'+i+'</b>':i}).join('+');
-		text+=' ('+chains[i].passing_sum/chains[i].length+') '
-		if(chains[i].cont) text+=chains[i].cont.join();
+		text+=chains[i].join('+');
+		//text+=' ('+chains[i].passing_sum/chains[i].length+') '
+		//if(chains[i].cont) text+=chains[i].cont.join();
 		text+='</li>';
 	}
 	text+='</ul>';
 	box.innerHTML=text;
 }
+function showChain(cur){
+	OSRM.Routing.clearTransitMarkers()
+	for(var i=0; i<glob.n; ++i) {
+		OSRM.G.markers.route[i].marker.setIcon(OSRM.G.icons['marker-highlight'])
+		OSRM.G.markers.route[i].marker.setOpacity(0.8);
+	}
+	var b = OSRM.G.active_routing_server_url + "?z=" + OSRM.G.map.getZoom() + "&output=json&jsonp=%jsonp&alt=false&instructions=false";
+	for(var i=0; i<chains[cur].length; ++i) {
+		OSRM.G.markers.route[chains[cur][i]].marker.setOpacity(1);
+		b += "&loc=" + 
+		        OSRM.G.markers.route[chains[cur][i]].position.lat.toFixed(OSRM.C.PRECISION) + 
+				"," + 
+				OSRM.G.markers.route[chains[cur][i]].position.lng.toFixed(OSRM.C.PRECISION);
+	}
+	OSRM.JSONP.call(b, OSRM.RoutingGeometry.show, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT, "chain_draw")
+	for(var i=1; i<chains[cur].length-1; ++i)
+		OSRM.G.markers.route[chains[cur][i]].marker.setIcon(OSRM.G.icons['marker-via'])
+	OSRM.G.markers.route[chains[cur][0]].marker.setIcon(OSRM.G.icons['marker-source'])
+	OSRM.G.markers.route[chains[cur][chains[cur].length-1]].marker.setIcon(OSRM.G.icons['marker-target'])
+	OSRM.G.markers.relabelViaMarkers()
+	return false;
+}
 function showAllMarkers(){
-	OSRM.Routing.clearTransitMarkers()
-	for(var i=0; i<glob.n; ++i)
+	var b = OSRM.G.active_routing_server_url + "?z=" + OSRM.G.map.getZoom() + "&output=json&jsonp=%jsonp&alt=false&instructions=false";
+	for(var i=0; i<glob.n; ++i) {
 		OSRM.G.markers.route[i].marker.setOpacity(1);
-	return false;
-}
-function showMarkersByPriority(){
-	OSRM.Routing.clearTransitMarkers()
-	priority=[];
-	var max=0;
-	for(var i=0; i<glob.n; ++i)
-		priority[i]=0;
-	for(var i=0;i<chains.length;i++)
-		for(var j=0; j<chains[i].length; ++j)
-			if(max<++priority[chains[i][j]])
-				max=priority[chains[i][j]];
-	var min=priority[0];
-	for(var i=0; i<glob.n; ++i)
-		if(min>priority[i])
-			min=priority[i];
-	for(var i=0; i<glob.n; ++i)
-	{
-		OSRM.G.markers.route[i].marker.setOpacity((priority[i]-min)/(max-min)*0.8+0.2);
-		OSRM.G.markers.route[i].marker._icon.title=priority[i];
+		b += "&loc=" + 
+		        OSRM.G.markers.route[i].position.lat.toFixed(OSRM.C.PRECISION) + "," + 
+				OSRM.G.markers.route[i].position.lng.toFixed(OSRM.C.PRECISION);
 	}
+	OSRM.JSONP.call(b, OSRM.RoutingGeometry.show, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT, "chain_draw")
+	for(var i=1; i<glob.n-1; ++i)
+		OSRM.G.markers.route[i].marker.setIcon(OSRM.G.icons['marker-via'])
+	OSRM.G.markers.route[0].marker.setIcon(OSRM.G.icons['marker-source'])
+	OSRM.G.markers.route[glob.n-1].marker.setIcon(OSRM.G.icons['marker-target'])
+	OSRM.G.markers.relabelViaMarkers()
 	return false;
 }
-function showMarkersByPriorityDesc(){
-	OSRM.Routing.clearTransitMarkers()
-	priority=[];
-	var max=0;
-	for(var i=0; i<glob.n; ++i)
-		priority[i]=0;
-	for(var i=0;i<chains.length;i++)
-		for(var j=0; j<chains[i].length; ++j)
-			if(max<++priority[chains[i][j]])
-				max=priority[chains[i][j]];
-	var min=priority[0];
-	for(var i=0; i<glob.n; ++i)
-		if(min>priority[i])
-			min=priority[i];
-	for(var i=0; i<glob.n; ++i)
-	{
-		OSRM.G.markers.route[i].marker.setOpacity((1-(priority[i]-min)/(max-min))*0.8+0.2);
-		OSRM.G.markers.route[i].marker._icon.title=priority[i];
-	}
-	return false;
-}
+// function showMarkersByPriority(){
+	// OSRM.Routing.clearTransitMarkers()
+	// priority=[];
+	// var max=0;
+	// for(var i=0; i<glob.n; ++i)
+		// priority[i]=0;
+	// for(var i=0;i<chains.length;i++)
+		// for(var j=0; j<chains[i].length; ++j)
+			// if(max<++priority[chains[i][j]])
+				// max=priority[chains[i][j]];
+	// var min=priority[0];
+	// for(var i=0; i<glob.n; ++i)
+		// if(min>priority[i])
+			// min=priority[i];
+	// for(var i=0; i<glob.n; ++i)
+	// {
+		// OSRM.G.markers.route[i].marker.setOpacity((priority[i]-min)/(max-min)*0.8+0.2);
+		// OSRM.G.markers.route[i].marker._icon.title=priority[i];
+	// }
+	// return false;
+// }
+// function showMarkersByPriorityDesc(){
+	// OSRM.Routing.clearTransitMarkers()
+	// priority=[];
+	// var max=0;
+	// for(var i=0; i<glob.n; ++i)
+		// priority[i]=0;
+	// for(var i=0;i<chains.length;i++)
+		// for(var j=0; j<chains[i].length; ++j)
+			// if(max<++priority[chains[i][j]])
+				// max=priority[chains[i][j]];
+	// var min=priority[0];
+	// for(var i=0; i<glob.n; ++i)
+		// if(min>priority[i])
+			// min=priority[i];
+	// for(var i=0; i<glob.n; ++i)
+	// {
+		// OSRM.G.markers.route[i].marker.setOpacity((1-(priority[i]-min)/(max-min))*0.8+0.2);
+		// OSRM.G.markers.route[i].marker._icon.title=priority[i];
+	// }
+	// return false;
+// }

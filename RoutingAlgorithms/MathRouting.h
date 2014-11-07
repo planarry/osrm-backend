@@ -39,6 +39,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
+#include <map>
+#include <set>
 #include <vector>
 
 template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<DataFacadeT>
@@ -72,6 +74,8 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
     typedef std::vector<std::pair<NodeID, EdgeWeight>>  CrossNodesTable;
     typedef typename DataFacadeT::EdgeData EdgeData;
     SearchEngineData &engine_working_data;
+    
+    static const unsigned NEAREST_RADIUS = 2;
 
   public:
     MathRouting(DataFacadeT *facade, SearchEngineData &engine_working_data)
@@ -168,102 +172,206 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         }
         BOOST_ASSERT(source_id == target_id);
         
-        JSON::Object root_obj;
-        JSON::Object forward_array, backward_array;
-        std::vector<JSON::Object> forward_point_objs_vector(number_of_locations),
-                                  backward_point_objs_vector(number_of_locations);
-        for(const auto &ii : forward_search_space_with_buckets)
-            for(const NodeBucket &bucket : ii.second)
-            {
-                EdgeData ed;        
-                EdgeID edge = super::facade->FindEdge(bucket.parent, ii.first);
-                do{
-                    if(edge==SPECIAL_EDGEID) break;
-                    ed = super::facade->GetEdgeData(edge);
-                    if (ed.shortcut)
-                        edge = super::facade->FindEdge(ed.id, ii.first);
-                    else break;
-                } while(true);
-                JSON::Object temp_obj;
-                temp_obj.values["parent"] = bucket.parent;
-                temp_obj.values["distance"] = bucket.distance;
-                if(edge!=SPECIAL_EDGEID){
-                    NodeID nbn_id;
-                    if (!super::facade->EdgeIsCompressed(ed.id))
-                        nbn_id = super::facade->GetGeometryIndexForEdgeID(ed.id);
-                    else
-                    {
-                        std::vector<unsigned> id_vector;
-                        auto index=super::facade->GetGeometryIndexForEdgeID(ed.id);
-                        super::facade->GetUncompressedGeometry(index, id_vector);
-                        nbn_id = id_vector.back();
-                    }
-                    auto coord = super::facade->GetCoordinateOfNode(nbn_id);
-                    
-                    temp_obj.values["lat"] = coord.lat / COORDINATE_PRECISION;
-                    temp_obj.values["lon"] = coord.lon / COORDINATE_PRECISION;
-                }
-                forward_point_objs_vector[bucket.point_id].values[IntToString(ii.first)]=temp_obj;
-                
-            }
-        for(const auto &ii : backward_search_space_with_buckets)
-            for(const NodeBucket &bucket : ii.second)
-            {
-                EdgeData ed;        
-                EdgeID edge = super::facade->FindEdge(bucket.parent, ii.first);
-                do{
-                    if(edge==SPECIAL_EDGEID) break;
-                    ed = super::facade->GetEdgeData(edge);
-                    if (ed.shortcut)
-                        edge = super::facade->FindEdge(ed.id, ii.first);
-                    else break;
-                } while(true);
-                JSON::Object temp_obj;
-                temp_obj.values["parent"] = bucket.parent;
-                temp_obj.values["distance"] = bucket.distance;
-                if(edge!=SPECIAL_EDGEID){
-                    NodeID nbn_id;
-                    if (!super::facade->EdgeIsCompressed(ed.id))
-                        nbn_id = super::facade->GetGeometryIndexForEdgeID(ed.id);
-                    else
-                    {
-                        std::vector<unsigned> id_vector;
-                        auto index=super::facade->GetGeometryIndexForEdgeID(ed.id);
-                        super::facade->GetUncompressedGeometry(index, id_vector);
-                        nbn_id = id_vector.back();
-                    }
-                    auto coord = super::facade->GetCoordinateOfNode(nbn_id);
-                    temp_obj.values["lat"] = coord.lat / COORDINATE_PRECISION;
-                    temp_obj.values["lon"] = coord.lon / COORDINATE_PRECISION;
-                }    
-                backward_point_objs_vector[bucket.point_id].values[IntToString(ii.first)]=temp_obj;
-                
-            }
-        for(int i=0;i<number_of_locations;++i)
+        std::vector<int> points_use_count(number_of_locations);
+        
+        std::vector<std::set<unsigned>> nearest_graph(number_of_locations);
+        
+        //i=start>|               |stoppers>>>>>>>>|  |chains>>>>>>>>>>>>>|
+        std::vector<std::multimap<std::set<unsigned>, std::vector<unsigned>>> chains_with_stopers_by_start_point(number_of_locations);
+        
+        //i=end>>>|        one-before-end|  |start>|
+        std::vector<std::multimap<unsigned, unsigned>> tails_list_ends_in_point(number_of_locations);
+        
+        // Building Nearest Graph
+        for(unsigned i=0; i<number_of_locations; ++i)
         {
-            forward_array.values[IntToString(i)]=forward_point_objs_vector[i];
-            backward_array.values[IntToString(i)]=backward_point_objs_vector[i];
+            std::vector<unsigned> sortvector(time_matrix.begin() + i * number_of_locations, 
+                                             time_matrix.begin() + (i + 1) * number_of_locations);
+            std::sort(sortvector.begin(), sortvector.end());
+            for(unsigned j=0; j<number_of_locations; ++j)
+                if(i != j && time_matrix[i * number_of_locations + j] <= sortvector[NEAREST_RADIUS])
+                {
+                    nearest_graph[i].insert(j);
+                    SimpleLogger().Write()<<"nearest for "<<i<<" is "<<j;
+                }
         }
-        root_obj.values["forward"]=forward_array;
-        root_obj.values["backward"]=backward_array;
-        root_obj.values["n"]=number_of_locations;
-        JSON::render(output, root_obj);
         
-        /*std::unordered_map<unsigned,std::unordered_set<long>> start_points_for_graph;
-        std::vector<std::unordered_map<unsigned,std::unordered_set<long>>> shortest_graph(number_of_locations);
-        BuildShortestPathGaph(start_points_for_graph,
-                              shortest_graph,
-                              backward_search_space_with_buckets,
-                              forward_search_space_with_buckets,
-                              cross_nodes_table,
-                              number_of_locations);*/
-        
-        //BinaryHeap<std::pair<unsigned,NodeID>, NodeID, int, SPHeapData, UnorderedMapStorage<NodeID, int>> spHeap(super::facade->GetNumberOfNodes());
-        //SPHeapData min
-        
-        
-        
+        //Try Look For Chain From Every Point
+        const std::set<unsigned> emptyset;
+        const std::vector<std::pair<unsigned, std::multimap<std::set<unsigned>, std::vector<unsigned>>::iterator>> emptyvector;
+        for(unsigned i=0; i<number_of_locations; ++i)
+        {
+            RecursiveLookForChain(i,
+                                  emptyset, 
+                                  emptyvector,
+                                  chains_with_stopers_by_start_point, 
+                                  tails_list_ends_in_point, 
+                                  points_use_count, 
+                                  nearest_graph, 
+                                  time_matrix);
+        }
+        OutputChainsByStart(chains_with_stopers_by_start_point, output);
         return result_table;
+    }
+    
+    void RecursiveLookForChain(const unsigned cur_point,
+                               std::set<unsigned> seteled_points, 
+                               std::vector<std::pair<unsigned, std::multimap<std::set<unsigned>, std::vector<unsigned>>::iterator>> chains_with_stopers_for_grow,
+                               std::vector<std::multimap<std::set<unsigned>, std::vector<unsigned>>> &chains_with_stopers_by_start_point,
+                               std::vector<std::multimap<unsigned, unsigned>> &tails_list_ends_in_point,
+                               std::vector<int> points_use_count,
+                               const std::vector<std::set<unsigned>> &nearest_graph,
+                               const std::vector<EdgeWeight> &time_matrix) const
+    {
+        SimpleLogger().Write()<<"run from "<<cur_point<<" whith "<<seteled_points.size()<<" seteled and "<<chains_with_stopers_for_grow.size()<<" traked";
+        
+        std::vector<std::vector<unsigned>*> chain_from_cache;
+        for(auto &chain_candidate : chains_with_stopers_by_start_point[cur_point])
+        {
+            
+            auto cur_stopper = chain_candidate.first.begin();
+            auto cur_seteled = seteled_points.begin();
+            
+            for(; cur_seteled != seteled_points.end(); ++cur_seteled)
+            {
+                if(cur_stopper != chain_candidate.first.end())
+                {
+                    if (*cur_stopper<*cur_seteled) break;
+                    else if(*cur_seteled==*cur_stopper) ++cur_stopper;
+                }
+                if(std::find(chain_candidate.second.begin(),
+                                  chain_candidate.second.end(),
+                                  *cur_seteled) != chain_candidate.second.end())
+                    break;
+            }
+            if(cur_seteled == seteled_points.end() && cur_stopper == chain_candidate.first.end())
+                chain_from_cache.push_back(&chain_candidate.second);
+        }
+        
+        SimpleLogger().Write()<<"chain_from_cache is "<<chain_from_cache.size();
+        
+        if(chain_from_cache.size() == 1)
+        {
+            for(auto &chain_for_grow : chains_with_stopers_for_grow)
+            {
+                chain_for_grow.second->second.push_back(cur_point);
+                chain_for_grow.second->second.insert(chain_for_grow.second->second.end(),
+                                                     chain_from_cache[0]->begin(),
+                                                     chain_from_cache[0]->end());
+            }
+            return; //without recursion
+        }
+        else if(chain_from_cache.size() > 1)
+        {
+            for(auto &chain_for_grow : chains_with_stopers_for_grow)
+                chain_for_grow.second->second.push_back(cur_point);
+            return; //without recursion
+        }
+        
+        
+        
+        std::set<unsigned> allowed_from_here;
+        std::set<unsigned> stopped_from_here;
+        auto cur_nearest = nearest_graph[cur_point].begin();
+        auto cur_seteled = seteled_points.begin();
+        while (cur_seteled != seteled_points.end() && cur_nearest != nearest_graph[cur_point].end())
+        {
+            if (*cur_nearest<*cur_seteled) 
+            {
+                allowed_from_here.insert(*cur_nearest);
+                ++cur_nearest;
+            }
+            else if (*cur_seteled<*cur_nearest) ++cur_seteled;
+            else 
+            {
+                stopped_from_here.insert(*cur_nearest);
+                ++cur_nearest; 
+                ++cur_seteled;
+            }
+        }
+        if(cur_nearest != nearest_graph[cur_point].end())
+            allowed_from_here.insert(cur_nearest, nearest_graph[cur_point].end());
+        SimpleLogger().Write()<<"nearest is "<<nearest_graph[cur_point].size();
+        SimpleLogger().Write()<<"allowed_from_here is "<<allowed_from_here.size();
+        SimpleLogger().Write()<<"stopped_from_here is "<<stopped_from_here.size();
+        
+        
+        for(auto &chain_for_grow : chains_with_stopers_for_grow) //look throw chains for grow
+        {
+            for(unsigned stopper : stopped_from_here) // for each stopper
+                if(chain_for_grow.first != stopper //check if chain dosn't contains stopper
+                    && std::find(chain_for_grow.second->second.begin(),
+                                chain_for_grow.second->second.end(), 
+                                stopper) == chain_for_grow.second->second.end())
+                { // then update chain's stoppers
+                    auto new_stoppers=chain_for_grow.second->first; //copy chain's stoppers
+                    new_stoppers.insert(stopper); //add cur stopper
+                    chains_with_stopers_by_start_point[chain_for_grow.first].erase(chain_for_grow.second); //delete chain from map
+                    chain_for_grow.second = chains_with_stopers_by_start_point[chain_for_grow.first]
+                        .emplace(new_stoppers, chain_for_grow.second->second); //insert chain with new stoppers
+                }
+            chain_for_grow.second->second.push_back(cur_point); //grow
+        }
+        
+        seteled_points.insert(cur_point); // set current point as seteled
+        
+        if(allowed_from_here.size() == 1)
+        {
+            // create new chain from current point
+            auto it = chains_with_stopers_by_start_point[cur_point].emplace(stopped_from_here, std::vector<unsigned>());
+            //it->second.push_back(cur_point);
+            chains_with_stopers_for_grow.emplace_back(cur_point, it); //track chain from current point
+            RecursiveLookForChain(*allowed_from_here.begin(),
+                                  seteled_points, 
+                                  chains_with_stopers_for_grow,
+                                  chains_with_stopers_by_start_point, 
+                                  tails_list_ends_in_point, 
+                                  points_use_count, 
+                                  nearest_graph, 
+                                  time_matrix);
+        }
+        else if(allowed_from_here.size() > 1)
+        {
+            for(unsigned next : allowed_from_here)
+            {
+                chains_with_stopers_for_grow.clear(); //stop traking
+                // create new chain from current point
+                auto it = chains_with_stopers_by_start_point[cur_point].emplace(stopped_from_here, std::vector<unsigned>());
+                //it->second.push_back(cur_point);
+                chains_with_stopers_for_grow.emplace_back(cur_point, it); //track chain from current point
+                RecursiveLookForChain(next,
+                                      seteled_points, 
+                                      chains_with_stopers_for_grow,
+                                      chains_with_stopers_by_start_point, 
+                                      tails_list_ends_in_point, 
+                                      points_use_count, 
+                                      nearest_graph, 
+                                      time_matrix);
+            }
+        }
+        // else size == 0 then return without recursion
+    }
+    void OutputChainsByStart (const std::vector<std::multimap<std::set<unsigned>, std::vector<unsigned>>> &chains_with_stopers_by_start_point,
+                              std::vector<char> &output) const
+    {
+        JSON::Object json_root;
+        //JSON::Array chain_groups_array;
+        JSON::Array chains_array;
+        for(unsigned start=0; start<chains_with_stopers_by_start_point.size(); ++start)
+        {
+            for(const auto &chain : chains_with_stopers_by_start_point[start])
+            {
+                JSON::Array chain_points_array;
+                chain_points_array.values.push_back(start);
+                for(const unsigned point : chain.second)
+                    chain_points_array.values.push_back(point);
+                chains_array.values.push_back(chain_points_array);
+            }
+            //chain_groups_array.values.push_back(chains_array);
+        }
+        json_root.values["chains"] = chains_array;//chain_groups_array;
+        json_root.values["n"] = chains_with_stopers_by_start_point.size();
+        JSON::render(output, json_root);
     }
     
     void BuildShortestPathGaph(std::unordered_map<unsigned,std::unordered_set<long>> &start_points_for_graph,
@@ -271,7 +379,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                                const SearchSpaceWithBuckets &backward_search_space_with_buckets,
                                const SearchSpaceWithBuckets &forward_search_space_with_buckets,
                                const std::vector<std::pair<NodeID, EdgeWeight>> &cross_nodes_table,
-                               const unsigned number_of_locations)
+                               const unsigned number_of_locations) const
     {
         for(int source_id=0;source_id<number_of_locations;++source_id)
             for(int target_id=0;target_id<number_of_locations;++target_id)
