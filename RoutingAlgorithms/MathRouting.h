@@ -176,8 +176,8 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         
         std::vector<std::set<unsigned>> nearest_graph(number_of_locations);
         
-        //i=start>|               |stoppers>>>>>>>>|  |chains>>>>>>>>>>>>>|
-        std::vector<std::multimap<std::set<unsigned>, std::vector<unsigned>>> chains_with_stopers_by_start_point(number_of_locations);
+        //i=start>|               |stoppers>>>>>>>>|                  |chains>>>>>>>>>>>>>|
+        std::vector<std::multimap<std::set<unsigned>, std::pair<bool, std::vector<unsigned>>>> chains_with_stopers_by_start_point(number_of_locations);
         
         //i=end>>>|        one-before-end|  |start>|
         std::vector<std::multimap<unsigned, unsigned>> tails_list_ends_in_point(number_of_locations);
@@ -185,7 +185,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         // Building Nearest Graph
         for(unsigned i=0; i<number_of_locations; ++i)
         {
-            std::vector<unsigned> sortvector(time_matrix.begin() + i * number_of_locations, 
+            std::vector<EdgeWeight> sortvector(time_matrix.begin() + i * number_of_locations, 
                                              time_matrix.begin() + (i + 1) * number_of_locations);
             std::sort(sortvector.begin(), sortvector.end());
             for(unsigned j=0; j<number_of_locations; ++j)
@@ -198,7 +198,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         
         //Try Look For Chain From Every Point
         const std::set<unsigned> emptyset;
-        const std::vector<std::pair<unsigned, std::multimap<std::set<unsigned>, std::vector<unsigned>>::iterator>> emptyvector;
+        const std::vector<std::pair<unsigned, std::multimap<std::set<unsigned>, std::pair<bool, std::vector<unsigned>>>::iterator>> emptyvector;
         for(unsigned i=0; i<number_of_locations; ++i)
         {
             RecursiveLookForChain(i,
@@ -210,14 +210,14 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                                   nearest_graph, 
                                   time_matrix);
         }
-        OutputChainsByStart(chains_with_stopers_by_start_point, output);
+        OutputChainsByStart(chains_with_stopers_by_start_point, time_matrix, output);
         return result_table;
     }
     
     void RecursiveLookForChain(const unsigned cur_point,
                                std::set<unsigned> seteled_points, 
-                               std::vector<std::pair<unsigned, std::multimap<std::set<unsigned>, std::vector<unsigned>>::iterator>> chains_with_stopers_for_grow,
-                               std::vector<std::multimap<std::set<unsigned>, std::vector<unsigned>>> &chains_with_stopers_by_start_point,
+                               std::vector<std::pair<unsigned, std::multimap<std::set<unsigned>, std::pair<bool, std::vector<unsigned>>>::iterator>> chains_with_stopers_for_grow,
+                               std::vector<std::multimap<std::set<unsigned>, std::pair<bool, std::vector<unsigned>>>> &chains_with_stopers_by_start_point,
                                std::vector<std::multimap<unsigned, unsigned>> &tails_list_ends_in_point,
                                std::vector<int> points_use_count,
                                const std::vector<std::set<unsigned>> &nearest_graph,
@@ -225,7 +225,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
     {
         SimpleLogger().Write()<<"run from "<<cur_point<<" whith "<<seteled_points.size()<<" seteled and "<<chains_with_stopers_for_grow.size()<<" traked";
         
-        std::vector<std::vector<unsigned>*> chain_from_cache;
+        std::vector<std::pair<bool, std::vector<unsigned>>*> chain_from_cache;
         for(auto &chain_candidate : chains_with_stopers_by_start_point[cur_point])
         {
             
@@ -239,9 +239,9 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                     if (*cur_stopper<*cur_seteled) break;
                     else if(*cur_seteled==*cur_stopper) ++cur_stopper;
                 }
-                if(std::find(chain_candidate.second.begin(),
-                                  chain_candidate.second.end(),
-                                  *cur_seteled) != chain_candidate.second.end())
+                if(std::find(chain_candidate.second.second.begin(),
+                                  chain_candidate.second.second.end(),
+                                  *cur_seteled) != chain_candidate.second.second.end())
                     break;
             }
             if(cur_seteled == seteled_points.end() && cur_stopper == chain_candidate.first.end())
@@ -252,19 +252,20 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         
         if(chain_from_cache.size() == 1)
         {
+            chain_from_cache[0]->first=false;
             for(auto &chain_for_grow : chains_with_stopers_for_grow)
             {
-                chain_for_grow.second->second.push_back(cur_point);
-                chain_for_grow.second->second.insert(chain_for_grow.second->second.end(),
-                                                     chain_from_cache[0]->begin(),
-                                                     chain_from_cache[0]->end());
+                chain_for_grow.second->second.second.push_back(cur_point);
+                chain_for_grow.second->second.second.insert(chain_for_grow.second->second.second.end(),
+                                                     chain_from_cache[0]->second.begin(),
+                                                     chain_from_cache[0]->second.end());
             }
             return; //without recursion
         }
         else if(chain_from_cache.size() > 1)
         {
             for(auto &chain_for_grow : chains_with_stopers_for_grow)
-                chain_for_grow.second->second.push_back(cur_point);
+                chain_for_grow.second->second.second.push_back(cur_point);
             return; //without recursion
         }
         
@@ -300,9 +301,9 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         {
             for(unsigned stopper : stopped_from_here) // for each stopper
                 if(chain_for_grow.first != stopper //check if chain dosn't contains stopper
-                    && std::find(chain_for_grow.second->second.begin(),
-                                chain_for_grow.second->second.end(), 
-                                stopper) == chain_for_grow.second->second.end())
+                    && std::find(chain_for_grow.second->second.second.begin(),
+                                chain_for_grow.second->second.second.end(), 
+                                stopper) == chain_for_grow.second->second.second.end())
                 { // then update chain's stoppers
                     auto new_stoppers=chain_for_grow.second->first; //copy chain's stoppers
                     new_stoppers.insert(stopper); //add cur stopper
@@ -310,7 +311,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                     chain_for_grow.second = chains_with_stopers_by_start_point[chain_for_grow.first]
                         .emplace(new_stoppers, chain_for_grow.second->second); //insert chain with new stoppers
                 }
-            chain_for_grow.second->second.push_back(cur_point); //grow
+            chain_for_grow.second->second.second.push_back(cur_point); //grow
         }
         
         seteled_points.insert(cur_point); // set current point as seteled
@@ -318,7 +319,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         if(allowed_from_here.size() == 1)
         {
             // create new chain from current point
-            auto it = chains_with_stopers_by_start_point[cur_point].emplace(stopped_from_here, std::vector<unsigned>());
+            auto it = chains_with_stopers_by_start_point[cur_point].emplace(stopped_from_here, std::make_pair(false, std::vector<unsigned>()));
             //it->second.push_back(cur_point);
             chains_with_stopers_for_grow.emplace_back(cur_point, it); //track chain from current point
             RecursiveLookForChain(*allowed_from_here.begin(),
@@ -336,7 +337,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
             {
                 chains_with_stopers_for_grow.clear(); //stop traking
                 // create new chain from current point
-                auto it = chains_with_stopers_by_start_point[cur_point].emplace(stopped_from_here, std::vector<unsigned>());
+                auto it = chains_with_stopers_by_start_point[cur_point].emplace(stopped_from_here, std::make_pair(true, std::vector<unsigned>()));
                 //it->second.push_back(cur_point);
                 chains_with_stopers_for_grow.emplace_back(cur_point, it); //track chain from current point
                 RecursiveLookForChain(next,
@@ -351,7 +352,8 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         }
         // else size == 0 then return without recursion
     }
-    void OutputChainsByStart (const std::vector<std::multimap<std::set<unsigned>, std::vector<unsigned>>> &chains_with_stopers_by_start_point,
+    void OutputChainsByStart (const std::vector<std::multimap<std::set<unsigned>, std::pair<bool, std::vector<unsigned>>>> &chains_with_stopers_by_start_point,
+                              const std::vector<EdgeWeight> &time_matrix,
                               std::vector<char> &output) const
     {
         JSON::Object json_root;
@@ -360,17 +362,29 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         for(unsigned start=0; start<chains_with_stopers_by_start_point.size(); ++start)
         {
             for(const auto &chain : chains_with_stopers_by_start_point[start])
-            {
-                JSON::Array chain_points_array;
-                chain_points_array.values.push_back(start);
-                for(const unsigned point : chain.second)
-                    chain_points_array.values.push_back(point);
-                chains_array.values.push_back(chain_points_array);
-            }
+                if(chain.second.first)
+                {
+                    JSON::Array chain_points_array;
+                    chain_points_array.values.push_back(start);
+                    for(const unsigned point : chain.second.second)
+                        chain_points_array.values.push_back(point);
+                    chains_array.values.push_back(chain_points_array);
+                }
             //chain_groups_array.values.push_back(chains_array);
         }
         json_root.values["chains"] = chains_array;//chain_groups_array;
         json_root.values["n"] = chains_with_stopers_by_start_point.size();
+        JSON::Array json_matrix_time;
+        const unsigned number_of_locations = chains_with_stopers_by_start_point.size();
+        for (unsigned row = 0; row < number_of_locations; ++row)
+        {
+            JSON::Array json_row_time;
+            json_row_time.values.insert(json_row_time.values.end(), 
+                                        time_matrix.begin() + row * number_of_locations, 
+                                        time_matrix.begin() + (row + 1) * number_of_locations);
+            json_matrix_time.values.push_back(json_row_time);
+        }
+        json_root.values["matrix_time"] = json_matrix_time;
         JSON::render(output, json_root);
     }
     
@@ -453,8 +467,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                 const EdgeWeight new_distance = source_distance + target_distance;
                 const unsigned index = source_id * number_of_locations + target_id;
                 const EdgeWeight current_distance = cross_nodes_table[index].second;
-                if(!cross_nodes_table[index].first 
-                    || (new_distance >= 0 && new_distance < current_distance))
+                if(new_distance >= 0 && (!cross_nodes_table[index].first || new_distance < current_distance))
                 {
                     cross_nodes_table[index]=std::make_pair(node,new_distance);
                     time_matrix[index]=new_distance;

@@ -2628,7 +2628,6 @@ function showChains(a){
 	box.innerHTML=text;
 }
 function showChain(cur){
-	OSRM.Routing.clearTransitMarkers()
 	for(var i=0; i<glob.n; ++i) {
 		OSRM.G.markers.route[i].marker.setIcon(OSRM.G.icons['marker-highlight'])
 		OSRM.G.markers.route[i].marker.setOpacity(0.8);
