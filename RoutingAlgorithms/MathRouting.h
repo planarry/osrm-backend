@@ -1,30 +1,3 @@
-/*
-
-Copyright (c) 2014, Project OSRM, Dennis Luxen, others
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification,
-are permitted provided that the following conditions are met:
-
-Redistributions of source code must retain the above copyright notice, this list
-of conditions and the following disclaimer.
-Redistributions in binary form must reproduce the above copyright notice, this
-list of conditions and the following disclaimer in the documentation and/or
-other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-*/
-
 #ifndef MATH_ROUTING_H
 #define MATH_ROUTING_H
 
@@ -42,12 +15,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include <set>
 #include <vector>
+#include <list>
 
 template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<DataFacadeT>
 {
+    typedef unsigned PointID;
     struct NodeBucket
     {
-        unsigned point_id; // essentially a row in the distance matrix
+        PointID point_id; // essentially a row in the distance matrix
         EdgeWeight distance;
         NodeID parent;
         NodeBucket(const unsigned point_id, const EdgeWeight distance, const NodeID parent)
@@ -67,12 +42,102 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         {
         }
     };
+    struct WeightMatrix
+    {
+        const unsigned number_of_locations;
+        std::vector<EdgeWeight> data;
+        WeightMatrix(unsigned number_of_locations)
+            : number_of_locations(number_of_locations), 
+              data(number_of_locations * number_of_locations, std::numeric_limits<EdgeWeight>::max())
+        {
+        }
+        
+        EdgeWeight &at(PointID x, PointID y)
+        { return data[x * number_of_locations + y]; }
+        
+        const EdgeWeight &at(PointID x, PointID y) const
+        { return data[x * number_of_locations + y]; }
+        
+        std::vector<EdgeWeight>::iterator row_iter(PointID row)
+        { return data.begin() + row * number_of_locations; }
+        
+        std::vector<EdgeWeight>::const_iterator row_iter(PointID row) const
+        { return data.begin() + row * number_of_locations; }
+        
+    };
+    struct Chain
+    {
+        PointID start;
+        std::set<PointID> required_stoppers;
+        std::vector<PointID> points_chain;
+        std::set<PointID> points_set;
+        bool longest;
+        short level;
+        EdgeWeight forward_distance;
+        EdgeWeight reverse_distance;
+        explicit Chain(PointID start,
+                       std::set<PointID> required_stoppers,
+                       bool longest, 
+                       short level = 1) 
+            : start(start), 
+              required_stoppers(required_stoppers), 
+              longest(longest), 
+              level(level), 
+              forward_distance(0), 
+              reverse_distance(0)
+        {
+        }
+        const PointID GetLast() const
+        {
+            if(points_chain.empty())
+                return start;
+            else return points_chain.back();
+        }
+        void Grow(PointID point, const WeightMatrix &weight_matrix)
+        {
+            forward_distance += weight_matrix.at(GetLast(), point);
+            reverse_distance += weight_matrix.at(point, GetLast());
+            points_chain.push_back(point);
+            points_set.insert(point);
+        }
+        bool IsCompliant(std::set<PointID> already_attended) const
+        {
+            auto stopper_iter = required_stoppers.begin();
+            auto attended_iter = already_attended.begin();
+            
+            for(; attended_iter != already_attended.end(); ++attended_iter)
+            {
+                if(stopper_iter != required_stoppers.end())
+                {
+                    if (*stopper_iter<*attended_iter) break;
+                    else if(*attended_iter==*stopper_iter) ++stopper_iter;
+                }
+                if(points_set.find(*attended_iter) != points_set.end())
+                    break;
+            }
+            return attended_iter == already_attended.end() && stopper_iter == required_stoppers.end();
+        }
+        bool operator<(const Chain &right) const
+        {
+            const unsigned n=std::min(points_chain.size(), right.points_chain.size());
+            for(unsigned i=0; i < n; ++i)
+                if(points_chain[i]<right.points_chain[i]) return true;
+                else if(points_chain[i]>right.points_chain[i]) return false;
+            if(points_chain.size()<right.points_chain.size()) return true;
+            else return false;
+        }
+        bool HasPoint(PointID point) const
+        {
+            return start==point || points_set.find(point) != points_set.end();
+        }
+    };
     typedef BasicRoutingInterface<DataFacadeT> super;
     typedef SearchEngineData::QueryHeap QueryHeap;
     typedef std::unordered_map<NodeID, EdgeWeight> LengthMap;
     typedef std::unordered_map<NodeID, std::vector<NodeBucket>> SearchSpaceWithBuckets;
     typedef std::vector<std::pair<NodeID, EdgeWeight>>  CrossNodesTable;
     typedef typename DataFacadeT::EdgeData EdgeData;
+    typedef typename std::vector<Chain>::iterator ChainRef;
     SearchEngineData &engine_working_data;
     
     static const unsigned NEAREST_RADIUS = 2;
@@ -92,8 +157,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         std::shared_ptr<std::vector<unsigned>> result_table =
             std::make_shared<std::vector<unsigned>>(number_of_locations,
                     std::numeric_limits<unsigned>::max());
-        std::vector<EdgeWeight> time_matrix(number_of_locations*number_of_locations,
-                    std::numeric_limits<unsigned>::max());
+        WeightMatrix time_matrix(number_of_locations);
 
         engine_working_data.InitializeOrClearFirstThreadLocalStorage(
             super::facade->GetNumberOfNodes());
@@ -174,217 +238,182 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         
         std::vector<int> points_use_count(number_of_locations);
         
-        std::vector<std::set<unsigned>> nearest_graph(number_of_locations);
+        std::vector<std::set<PointID>> nearest_graph(number_of_locations);
         
-        //i=start>|               |stoppers>>>>>>>>|                  |chains>>>>>>>>>>>>>|
-        std::vector<std::multimap<std::set<unsigned>, std::pair<bool, std::vector<unsigned>>>> chains_with_stopers_by_start_point(number_of_locations);
+        std::vector<std::vector<Chain>> chains_pull(number_of_locations);
         
-        //i=end>>>|        one-before-end|  |start>|
-        std::vector<std::multimap<unsigned, unsigned>> tails_list_ends_in_point(number_of_locations);
+        //i=end>>>|       one-before-end|  |start|
+        std::vector<std::multimap<PointID, PointID>> tails_list(number_of_locations);
         
         // Building Nearest Graph
-        for(unsigned i=0; i<number_of_locations; ++i)
+        for(PointID i=0; i<number_of_locations; ++i)
         {
-            std::vector<EdgeWeight> sortvector(time_matrix.begin() + i * number_of_locations, 
-                                             time_matrix.begin() + (i + 1) * number_of_locations);
+            std::vector<EdgeWeight> sortvector(time_matrix.row_iter(i), time_matrix.row_iter(i + 1));
             std::sort(sortvector.begin(), sortvector.end());
-            for(unsigned j=0; j<number_of_locations; ++j)
-                if(i != j && time_matrix[i * number_of_locations + j] <= sortvector[NEAREST_RADIUS])
+            EdgeWeight threshold = sortvector[std::min(NEAREST_RADIUS, number_of_locations - 1)];
+            for(PointID j=0; j<number_of_locations; ++j)//{SimpleLogger().Write()<<"dist from "<<i<<" to "<<j<<" is "<<time_matrix.at(i, j);
+                if(i != j && time_matrix.at(i, j) <= threshold)
                 {
                     nearest_graph[i].insert(j);
                     SimpleLogger().Write()<<"nearest for "<<i<<" is "<<j;
-                }
+                }//}
         }
         
         //Try Look For Chain From Every Point
-        const std::set<unsigned> emptyset;
-        const std::vector<std::pair<unsigned, std::multimap<std::set<unsigned>, std::pair<bool, std::vector<unsigned>>>::iterator>> emptyvector;
-        for(unsigned i=0; i<number_of_locations; ++i)
+        const std::set<PointID> empty_attendance_set;
+        const std::list<ChainRef> empty_track_list;
+        for(PointID i=0; i<number_of_locations; ++i)
         {
             RecursiveLookForChain(i,
-                                  emptyset, 
-                                  emptyvector,
-                                  chains_with_stopers_by_start_point, 
-                                  tails_list_ends_in_point, 
+                                  empty_attendance_set, 
+                                  empty_track_list,
+                                  chains_pull, 
+                                  tails_list, 
                                   points_use_count, 
                                   nearest_graph, 
-                                  time_matrix);
+                                  time_matrix,
+                                  number_of_locations);
         }
-        OutputChainsByStart(chains_with_stopers_by_start_point, time_matrix, output);
+        OutputChainsByStart(output, chains_pull);
         return result_table;
     }
     
-    void RecursiveLookForChain(const unsigned cur_point,
-                               std::set<unsigned> seteled_points, 
-                               std::vector<std::pair<unsigned, std::multimap<std::set<unsigned>, std::pair<bool, std::vector<unsigned>>>::iterator>> chains_with_stopers_for_grow,
-                               std::vector<std::multimap<std::set<unsigned>, std::pair<bool, std::vector<unsigned>>>> &chains_with_stopers_by_start_point,
-                               std::vector<std::multimap<unsigned, unsigned>> &tails_list_ends_in_point,
-                               std::vector<int> points_use_count,
-                               const std::vector<std::set<unsigned>> &nearest_graph,
-                               const std::vector<EdgeWeight> &time_matrix) const
+    void RecursiveLookForChain(const PointID cur_point,
+                               std::set<PointID> attendance_set, 
+                               std::list<ChainRef> track_list,
+                               std::vector<std::vector<Chain>> &chains_pull_ref,
+                               std::vector<std::multimap<PointID, PointID>> &tails_list_ref,
+                               std::vector<int> &points_use_count_ref,
+                               const std::vector<std::set<PointID>> &nearest_graph,
+                               const WeightMatrix &time_matrix,
+                               const unsigned number_of_locations) const
     {
-        SimpleLogger().Write()<<"run from "<<cur_point<<" whith "<<seteled_points.size()<<" seteled and "<<chains_with_stopers_for_grow.size()<<" traked";
+        SimpleLogger().Write()<<"run from "<<cur_point<<" whith "<<attendance_set.size()<<" attend and "<<track_list.size()<<" traked";
         
-        std::vector<std::pair<bool, std::vector<unsigned>>*> chain_from_cache;
-        for(auto &chain_candidate : chains_with_stopers_by_start_point[cur_point])
-        {
-            
-            auto cur_stopper = chain_candidate.first.begin();
-            auto cur_seteled = seteled_points.begin();
-            
-            for(; cur_seteled != seteled_points.end(); ++cur_seteled)
-            {
-                if(cur_stopper != chain_candidate.first.end())
-                {
-                    if (*cur_stopper<*cur_seteled) break;
-                    else if(*cur_seteled==*cur_stopper) ++cur_stopper;
-                }
-                if(std::find(chain_candidate.second.second.begin(),
-                                  chain_candidate.second.second.end(),
-                                  *cur_seteled) != chain_candidate.second.second.end())
-                    break;
-            }
-            if(cur_seteled == seteled_points.end() && cur_stopper == chain_candidate.first.end())
-                chain_from_cache.push_back(&chain_candidate.second);
-        }
+        std::vector<ChainRef> chain_from_cache;
+        for(ChainRef chain_candidate = chains_pull_ref[cur_point].begin(); 
+            chain_candidate < chains_pull_ref[cur_point].end();
+            ++chain_candidate)
+            if(chain_candidate->IsCompliant(attendance_set))
+                chain_from_cache.push_back(chain_candidate);
         
         SimpleLogger().Write()<<"chain_from_cache is "<<chain_from_cache.size();
         
         if(chain_from_cache.size() == 1)
         {
-            chain_from_cache[0]->first=false;
-            for(auto &chain_for_grow : chains_with_stopers_for_grow)
+            chain_from_cache.front()->longest = false;
+            for(ChainRef chain_for_grow : track_list)
             {
-                chain_for_grow.second->second.second.push_back(cur_point);
-                chain_for_grow.second->second.second.insert(chain_for_grow.second->second.second.end(),
-                                                     chain_from_cache[0]->second.begin(),
-                                                     chain_from_cache[0]->second.end());
+                chain_for_grow->Grow(cur_point, time_matrix);
+                for(PointID point : chain_from_cache.front()->points_chain)
+                    chain_for_grow->Grow(point, time_matrix);
             }
             return; //without recursion
         }
         else if(chain_from_cache.size() > 1)
         {
-            for(auto &chain_for_grow : chains_with_stopers_for_grow)
-                chain_for_grow.second->second.second.push_back(cur_point);
+            for(ChainRef chain_for_grow : track_list)
+                chain_for_grow->Grow(cur_point, time_matrix);
             return; //without recursion
         }
         
         
         
-        std::set<unsigned> allowed_from_here;
-        std::set<unsigned> stopped_from_here;
-        auto cur_nearest = nearest_graph[cur_point].begin();
-        auto cur_seteled = seteled_points.begin();
-        while (cur_seteled != seteled_points.end() && cur_nearest != nearest_graph[cur_point].end())
+        std::set<PointID> allowed_from_here;
+        std::set<PointID> stopped_from_here;
+        auto nearest_iter = nearest_graph[cur_point].begin();
+        auto attended_iter = attendance_set.begin();
+        while (attended_iter != attendance_set.end() && nearest_iter != nearest_graph[cur_point].end())
         {
-            if (*cur_nearest<*cur_seteled) 
+            if (*nearest_iter<*attended_iter) 
             {
-                allowed_from_here.insert(*cur_nearest);
-                ++cur_nearest;
+                allowed_from_here.insert(*nearest_iter);
+                ++nearest_iter;
             }
-            else if (*cur_seteled<*cur_nearest) ++cur_seteled;
+            else if (*attended_iter<*nearest_iter) ++attended_iter;
             else 
             {
-                stopped_from_here.insert(*cur_nearest);
-                ++cur_nearest; 
-                ++cur_seteled;
+                stopped_from_here.insert(*nearest_iter);
+                ++nearest_iter; 
+                ++attended_iter;
             }
         }
-        if(cur_nearest != nearest_graph[cur_point].end())
-            allowed_from_here.insert(cur_nearest, nearest_graph[cur_point].end());
+        if(nearest_iter != nearest_graph[cur_point].end())
+            allowed_from_here.insert(nearest_iter, nearest_graph[cur_point].end());
         SimpleLogger().Write()<<"nearest is "<<nearest_graph[cur_point].size();
         SimpleLogger().Write()<<"allowed_from_here is "<<allowed_from_here.size();
         SimpleLogger().Write()<<"stopped_from_here is "<<stopped_from_here.size();
         
-        
-        for(auto &chain_for_grow : chains_with_stopers_for_grow) //look throw chains for grow
+        //look throw traked chains for grow
+        for(ChainRef chain_for_grow : track_list) 
         {
-            for(unsigned stopper : stopped_from_here) // for each stopper
-                if(chain_for_grow.first != stopper //check if chain dosn't contains stopper
-                    && std::find(chain_for_grow.second->second.second.begin(),
-                                chain_for_grow.second->second.second.end(), 
-                                stopper) == chain_for_grow.second->second.second.end())
-                { // then update chain's stoppers
-                    auto new_stoppers=chain_for_grow.second->first; //copy chain's stoppers
-                    new_stoppers.insert(stopper); //add cur stopper
-                    chains_with_stopers_by_start_point[chain_for_grow.first].erase(chain_for_grow.second); //delete chain from map
-                    chain_for_grow.second = chains_with_stopers_by_start_point[chain_for_grow.first]
-                        .emplace(new_stoppers, chain_for_grow.second->second); //insert chain with new stoppers
-                }
-            chain_for_grow.second->second.second.push_back(cur_point); //grow
+            //update stoppers
+            for(PointID stopper : stopped_from_here)
+                if(!chain_for_grow->HasPoint(stopper))
+                    chain_for_grow->required_stoppers.insert(stopper);
+            SimpleLogger().Write()<<"grow";
+            chain_for_grow->Grow(cur_point, time_matrix);
         }
         
-        seteled_points.insert(cur_point); // set current point as seteled
+        attendance_set.insert(cur_point); // set current point as attended
         
         if(allowed_from_here.size() == 1)
         {
             // create new chain from current point
-            auto it = chains_with_stopers_by_start_point[cur_point].emplace(stopped_from_here, std::make_pair(false, std::vector<unsigned>()));
-            //it->second.push_back(cur_point);
-            chains_with_stopers_for_grow.emplace_back(cur_point, it); //track chain from current point
+            chains_pull_ref[cur_point].emplace_back(cur_point, stopped_from_here, false);
+            track_list.emplace_back(chains_pull_ref[cur_point].end() - 1); //track chain from current point
             RecursiveLookForChain(*allowed_from_here.begin(),
-                                  seteled_points, 
-                                  chains_with_stopers_for_grow,
-                                  chains_with_stopers_by_start_point, 
-                                  tails_list_ends_in_point, 
-                                  points_use_count, 
+                                  attendance_set, 
+                                  track_list,
+                                  chains_pull_ref, 
+                                  tails_list_ref, 
+                                  points_use_count_ref, 
                                   nearest_graph, 
-                                  time_matrix);
+                                  time_matrix,
+                                  number_of_locations);
         }
         else if(allowed_from_here.size() > 1)
         {
-            for(unsigned next : allowed_from_here)
+            for(PointID next : allowed_from_here)
             {
-                chains_with_stopers_for_grow.clear(); //stop traking
+                track_list.clear(); //stop traking
                 // create new chain from current point
-                auto it = chains_with_stopers_by_start_point[cur_point].emplace(stopped_from_here, std::make_pair(true, std::vector<unsigned>()));
-                //it->second.push_back(cur_point);
-                chains_with_stopers_for_grow.emplace_back(cur_point, it); //track chain from current point
+                chains_pull_ref[cur_point].emplace_back(cur_point, stopped_from_here, true);
+                track_list.emplace_back(chains_pull_ref[cur_point].end() - 1); //track chain from current point
                 RecursiveLookForChain(next,
-                                      seteled_points, 
-                                      chains_with_stopers_for_grow,
-                                      chains_with_stopers_by_start_point, 
-                                      tails_list_ends_in_point, 
-                                      points_use_count, 
+                                      attendance_set, 
+                                      track_list,
+                                      chains_pull_ref, 
+                                      tails_list_ref, 
+                                      points_use_count_ref, 
                                       nearest_graph, 
-                                      time_matrix);
+                                      time_matrix,
+                                      number_of_locations);
             }
         }
         // else size == 0 then return without recursion
     }
-    void OutputChainsByStart (const std::vector<std::multimap<std::set<unsigned>, std::pair<bool, std::vector<unsigned>>>> &chains_with_stopers_by_start_point,
-                              const std::vector<EdgeWeight> &time_matrix,
-                              std::vector<char> &output) const
+    void OutputChainsByStart (std::vector<char> &output,
+                              const std::vector<std::vector<Chain>> &chains_pull) const
     {
         JSON::Object json_root;
         //JSON::Array chain_groups_array;
         JSON::Array chains_array;
-        for(unsigned start=0; start<chains_with_stopers_by_start_point.size(); ++start)
+        for(PointID start=0; start<chains_pull.size(); ++start)
         {
-            for(const auto &chain : chains_with_stopers_by_start_point[start])
-                if(chain.second.first)
+            for(const Chain &chain : chains_pull[start])
+                if(chain.longest)
                 {
                     JSON::Array chain_points_array;
                     chain_points_array.values.push_back(start);
-                    for(const unsigned point : chain.second.second)
+                    for(const PointID point : chain.points_chain)
                         chain_points_array.values.push_back(point);
                     chains_array.values.push_back(chain_points_array);
                 }
             //chain_groups_array.values.push_back(chains_array);
         }
         json_root.values["chains"] = chains_array;//chain_groups_array;
-        json_root.values["n"] = chains_with_stopers_by_start_point.size();
-        JSON::Array json_matrix_time;
-        const unsigned number_of_locations = chains_with_stopers_by_start_point.size();
-        for (unsigned row = 0; row < number_of_locations; ++row)
-        {
-            JSON::Array json_row_time;
-            json_row_time.values.insert(json_row_time.values.end(), 
-                                        time_matrix.begin() + row * number_of_locations, 
-                                        time_matrix.begin() + (row + 1) * number_of_locations);
-            json_matrix_time.values.push_back(json_row_time);
-        }
-        json_root.values["matrix_time"] = json_matrix_time;
+        json_root.values["n"] = chains_pull.size();
         JSON::render(output, json_root);
     }
     
@@ -443,7 +472,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                             const SearchSpaceWithBuckets &backward_search_space_with_buckets,
                             SearchSpaceWithBuckets &forward_search_space_with_buckets,
                             CrossNodesTable &cross_nodes_table,
-                            std::vector<EdgeWeight> &time_matrix,
+                            WeightMatrix &time_matrix,
                             const TransportRestriction &tr) const
     {
         const NodeID node = query_heap.DeleteMin();
@@ -469,8 +498,8 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                 const EdgeWeight current_distance = cross_nodes_table[index].second;
                 if(new_distance >= 0 && (!cross_nodes_table[index].first || new_distance < current_distance))
                 {
-                    cross_nodes_table[index]=std::make_pair(node,new_distance);
-                    time_matrix[index]=new_distance;
+                    cross_nodes_table[index] = std::make_pair(node,new_distance);
+                    time_matrix.at(source_id, target_id) = new_distance;
                 }
             }
         }
