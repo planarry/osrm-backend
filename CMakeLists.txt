@@ -171,6 +171,12 @@ if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   ADD_DEFINITIONS(-std=c++11)
 endif()
 
+
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+  ADD_DEFINITIONS(-fno-inline-functions)
+  ADD_DEFINITIONS(-O0)
+endif()
+
 # Configuring other platform dependencies
 if(APPLE)
   set(CMAKE_OSX_ARCHITECTURES "x86_64")

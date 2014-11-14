@@ -5,6 +5,7 @@
 #include "../DataStructures/JSONContainer.h"
 #include "../DataStructures/SearchEngineData.h"
 #include "../typedefs.h"
+#include "../Util/TimingUtil.h"
 
 #include <boost/assert.hpp>
 
@@ -22,26 +23,15 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
     typedef unsigned PointID;
     struct NodeBucket
     {
-        PointID point_id; // essentially a row in the distance matrix
+        PointID target_id; // essentially a row in the distance matrix
         EdgeWeight distance;
         NodeID parent;
-        NodeBucket(const unsigned point_id, const EdgeWeight distance, const NodeID parent)
-            : point_id(point_id), distance(distance), parent(parent)
+        NodeBucket(const unsigned target_id, const EdgeWeight distance, const NodeID parent)
+            : target_id(target_id), distance(distance), parent(parent)
         {
         }
     };
-    struct SPHeapData
-    {
-        EdgeWeight time;
-        EdgeWeight weight;
-        std::vector<unsigned> settled;
-        SPHeapData(const EdgeWeight time, 
-                   const EdgeWeight weight, 
-                   const std::vector<unsigned> &settled)
-            : time(time), weight(weight), settled(settled)
-        {
-        }
-    };
+    
     struct WeightMatrix
     {
         const unsigned number_of_locations;
@@ -117,14 +107,20 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
             }
             return attended_iter == already_attended.end() && stopper_iter == required_stoppers.end();
         }
-        bool operator<(const Chain &right) const
+        
+        static bool CompareByStart(const Chain &left, const Chain &right)
         {
-            const unsigned n=std::min(points_chain.size(), right.points_chain.size());
-            for(unsigned i=0; i < n; ++i)
-                if(points_chain[i]<right.points_chain[i]) return true;
-                else if(points_chain[i]>right.points_chain[i]) return false;
-            if(points_chain.size()<right.points_chain.size()) return true;
-            else return false;
+            return !left.longest || 
+                std::lexicographical_compare( left.points_chain.begin(),  left.points_chain.end(), 
+                                             right.points_chain.begin(), right.points_chain.end());
+        }
+        
+        static bool CompareByEnd(const Chain *left, const Chain *right)
+        {
+            if(!left->longest) return true;
+            bool res = std::lexicographical_compare( left->points_chain.rbegin(),  left->points_chain.rend(), 
+                                                    right->points_chain.rbegin(), right->points_chain.rend());
+            
         }
         bool HasPoint(PointID point) const
         {
@@ -135,7 +131,8 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
     typedef SearchEngineData::QueryHeap QueryHeap;
     typedef std::unordered_map<NodeID, EdgeWeight> LengthMap;
     typedef std::unordered_map<NodeID, std::vector<NodeBucket>> SearchSpaceWithBuckets;
-    typedef std::vector<std::pair<NodeID, EdgeWeight>>  CrossNodesTable;
+    typedef std::vector<std::unordered_map<NodeID, NodeID>> HierarchyTree;
+    typedef std::vector<NodeID>  CrossNodesTable;
     typedef typename DataFacadeT::EdgeData EdgeData;
     typedef typename std::vector<Chain>::iterator ChainRef;
     SearchEngineData &engine_working_data;
@@ -153,6 +150,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
     std::shared_ptr<std::vector<unsigned>> operator()(const PhantomNodeArray &phantom_nodes_array, const TransportRestriction &tr, std::vector<char> &output)
         const
     {
+        TIMER_START(process);
         const unsigned number_of_locations=phantom_nodes_array.size();
         std::shared_ptr<std::vector<unsigned>> result_table =
             std::make_shared<std::vector<unsigned>>(number_of_locations,
@@ -164,8 +162,9 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
 
         QueryHeap &query_heap = *(engine_working_data.forwardHeap);
 
-        SearchSpaceWithBuckets backward_search_space_with_buckets, forward_search_space_with_buckets;
-        std::vector<std::pair<NodeID, EdgeWeight>> cross_nodes_table(number_of_locations*number_of_locations);
+        SearchSpaceWithBuckets backward_search_space_with_buckets;
+        HierarchyTree backward_hierarchy_tree(number_of_locations), forward_hierarchy_tree(number_of_locations);
+        CrossNodesTable cross_nodes_table(number_of_locations*number_of_locations);
 
         unsigned target_id = 0;
         for (const std::vector<PhantomNode> &phantom_node_vector : phantom_nodes_array)
@@ -192,7 +191,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
             // explore search space
             while (!query_heap.Empty())
             {
-                BackwardRoutingStep(target_id, query_heap, backward_search_space_with_buckets, tr);
+                BackwardRoutingStep(target_id, query_heap, backward_search_space_with_buckets, backward_hierarchy_tree, tr);
             }
             ++target_id;
         }
@@ -226,7 +225,8 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                                    number_of_locations,
                                    query_heap, 
                                    backward_search_space_with_buckets,
-                                   forward_search_space_with_buckets,
+                                   forward_hierarchy_tree,
+                                   backward_hierarchy_tree,
                                    cross_nodes_table,
                                    time_matrix,
                                    tr);
@@ -246,18 +246,12 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         std::vector<std::multimap<PointID, PointID>> tails_list(number_of_locations);
         
         // Building Nearest Graph
-        for(PointID i=0; i<number_of_locations; ++i)
-        {
-            std::vector<EdgeWeight> sortvector(time_matrix.row_iter(i), time_matrix.row_iter(i + 1));
-            std::sort(sortvector.begin(), sortvector.end());
-            EdgeWeight threshold = sortvector[std::min(NEAREST_RADIUS, number_of_locations - 1)];
-            for(PointID j=0; j<number_of_locations; ++j)//{SimpleLogger().Write()<<"dist from "<<i<<" to "<<j<<" is "<<time_matrix.at(i, j);
-                if(i != j && time_matrix.at(i, j) <= threshold)
-                {
-                    nearest_graph[i].insert(j);
-                    SimpleLogger().Write()<<"nearest for "<<i<<" is "<<j;
-                }//}
-        }
+        BuildNearestGraph(nearest_graph, 
+                          time_matrix, 
+                          cross_nodes_table, 
+                          forward_hierarchy_tree, 
+                          backward_hierarchy_tree,
+                          phantom_nodes_array);
         
         //Try Look For Chain From Every Point
         const std::set<PointID> empty_attendance_set;
@@ -274,7 +268,9 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                                   time_matrix,
                                   number_of_locations);
         }
-        OutputChainsByStart(output, chains_pull);
+        //FilterChains(chains_pull);
+        TIMER_STOP(process);
+        OutputChainsByStart(output, chains_pull, TIMER_SEC(process));
         return result_table;
     }
     
@@ -360,7 +356,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         if(allowed_from_here.size() == 1)
         {
             // create new chain from current point
-            chains_pull_ref[cur_point].emplace_back(cur_point, stopped_from_here, false);
+            chains_pull_ref[cur_point].emplace_back(cur_point, stopped_from_here, attendance_set.size()==1);
             track_list.emplace_back(chains_pull_ref[cur_point].end() - 1); //track chain from current point
             RecursiveLookForChain(*allowed_from_here.begin(),
                                   attendance_set, 
@@ -393,8 +389,40 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         }
         // else size == 0 then return without recursion
     }
+    
+    /*void FilterChains(std::vector<std::vector<Chain>> &chains_pull)
+    {
+        std::set<Chain*, &Chain::CompareByEnd> ordered_by_end;
+        for(PointID start=0; start<chains_pull.size(); ++start)
+            for(Chain &chain : chains_pull[start])
+                ordered_by_end.insert(&chain);
+        auto prev_inter = std::partition_point(ordered_by_end.begin(), ordered_by_end.end(), [](Chain* c){ return !c->longest; });
+        if(prev_inter != ordered_by_end.end()) {
+            auto cur_inter = prev_inter + 1;
+            for(; cur_inter!=ordered_by_end.end(); ++cur_inter)
+                if(std::equal((*prev_inter)->points_chain.rbegin(), 
+                              (*prev_inter)->points_chain.rend(),
+                              (*cur_inter)->points_chain.rbegin()))
+                    (*prev_inter)->longest = false;
+        }
+        for(PointID start=0; start<chains_pull.size(); ++start)
+        {
+            std::sort(chains_pull[start].begin(), chains_pull[start].end(), &Chain::CompareByStart);
+            auto prev_inter = std::partition_point(chains_pull[start].begin(), chains_pull[start].end(), [](const Chain &c){ return !c.longest; });
+            if(prev_inter != chains_pull[start].end()) {
+                auto cur_inter = prev_inter + 1;
+                for(; cur_inter!=chains_pull[start].end(); ++cur_inter)
+                    if(std::equal(prev_inter->points_chain.begin(), 
+                                  prev_inter->points_chain.end(),
+                                  cur_inter->points_chain.begin()))
+                        prev_inter->longest = false;
+            }
+        }
+    }*/
+    
     void OutputChainsByStart (std::vector<char> &output,
-                              const std::vector<std::vector<Chain>> &chains_pull) const
+                              const std::vector<std::vector<Chain>> &chains_pull,
+                              double time) const
     {
         JSON::Object json_root;
         //JSON::Array chain_groups_array;
@@ -402,7 +430,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         for(PointID start=0; start<chains_pull.size(); ++start)
         {
             for(const Chain &chain : chains_pull[start])
-                if(chain.longest)
+                if(true)//chain.longest)
                 {
                     JSON::Array chain_points_array;
                     chain_points_array.values.push_back(start);
@@ -414,63 +442,190 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         }
         json_root.values["chains"] = chains_array;//chain_groups_array;
         json_root.values["n"] = chains_pull.size();
+        json_root.values["time"] = time;
         JSON::render(output, json_root);
     }
     
-    void BuildShortestPathGaph(std::unordered_map<unsigned,std::unordered_set<long>> &start_points_for_graph,
-                               std::vector<std::unordered_map<unsigned,std::unordered_set<long>>> &shortest_graph,
-                               const SearchSpaceWithBuckets &backward_search_space_with_buckets,
-                               const SearchSpaceWithBuckets &forward_search_space_with_buckets,
-                               const std::vector<std::pair<NodeID, EdgeWeight>> &cross_nodes_table,
-                               const unsigned number_of_locations) const
+    bool CheckIsEdgePassThrowBlocked(NodeID from, NodeID to, std::set<NodeID> bloked) const
     {
-        for(int source_id=0;source_id<number_of_locations;++source_id)
-            for(int target_id=0;target_id<number_of_locations;++target_id)
+        if(bloked.find(from) != bloked.end())
+            return true;
+        EdgeID edge = super::facade->FindEdgeInEitherDirection(from, to);
+        BOOST_ASSERT(edge != SPECIAL_EDGEID);
+        EdgeData ed = super::facade->GetEdgeData(edge);
+        if(ed.shortcut)
+            return CheckIsEdgePassThrowBlocked( from, ed.id, bloked)
+                || CheckIsEdgePassThrowBlocked(ed.id,    to, bloked);
+        else return false;
+    }
+    
+    bool set_has_intesection(const std::set<NodeID> &set1, const std::set<NodeID> &set2) const
+    {
+        auto first1=set1.begin(), 
+             last1=set1.end(), 
+             first2=set2.begin(), 
+             last2=set2.end();
+        while (first1!=last1 && first2!=last2)
+        {
+            if (*first1<*first2) ++first1;
+            else if (*first2<*first1) ++first2;
+            else return true;
+        }
+        return false;
+    }
+    
+    void BuildNearestGraph(std::vector<std::set<PointID>> &nearest_graph, 
+                           const WeightMatrix &time_matrix, 
+                           const CrossNodesTable &cross_nodes_table, 
+                           const HierarchyTree &forward_hierarchy_tree, 
+                           const HierarchyTree &backward_hierarchy_tree,
+                           const PhantomNodeArray &phantom_nodes_array) const
+    {
+        const unsigned n = time_matrix.number_of_locations;
+        std::vector<std::set<NodeID>> phantomes(n);
+        std::set<NodeID> phantomes_all;
+        PointID i = 0;
+        for (const std::vector<PhantomNode> &phantom_node_vector : phantom_nodes_array)
+        {
+            for (const PhantomNode &phantom_node : phantom_node_vector)
             {
-                NodeID cur_node=cross_nodes_table[source_id * number_of_locations + target_id].first;
-                bool process=true;
-                while(process)
-                    for (const NodeBucket &current_bucket : backward_search_space_with_buckets[cur_node])
-                        if(current_bucket.point_id==target_id)
-                        {
-                            if(cur_node!=current_bucket.parent)
-                            {
-                                shortest_graph[source_id][cur_node].insert(current_bucket.parent);
-                                cur_node==current_bucket.parent;
-                            }
-                            else 
-                            {
-                                shortest_graph[source_id][cur_node].insert(-target_id);
-                                process=false;
-                            }
-                            break;
-                        }
-                cur_node=cross_nodes_table[source_id * number_of_locations + target_id].first;
-                process=true;
-                while(process)
-                    for (const NodeBucket &current_bucket : forward_search_space_with_buckets[cur_node])
-                        if(current_bucket.point_id==source_id)
-                        {
-                            if(cur_node!=current_bucket.parent)
-                            {
-                                shortest_graph[source_id][current_bucket.parent].insert(cur_node);
-                                cur_node==current_bucket.parent;
-                            }
-                            else 
-                            {
-                                process=false;
-                                start_points_for_graph[source_id].insert(cur_node);
-                            }
-                            break;
-                        }
+                if (SPECIAL_NODEID != phantom_node.forward_node_id)
+                {
+                    phantomes[i].insert(phantom_node.forward_node_id);
+                    phantomes_all.insert(phantom_node.forward_node_id);
+                    SimpleLogger().Write(logDEBUG) << "Phantome for "<<i<<" is "<<phantom_node.forward_node_id;
+                }
+                if (SPECIAL_NODEID != phantom_node.reverse_node_id)
+                {
+                    phantomes[i].insert(phantom_node.reverse_node_id);
+                    phantomes_all.insert(phantom_node.reverse_node_id);
+                    SimpleLogger().Write(logDEBUG) << "Phantome for "<<i<<" is "<<phantom_node.reverse_node_id;
+                }
             }
+            ++i;
+        }
+        for(i = 0; i < n; ++i)
+        {
+            TIMER_START(source);
+            std::vector<PointID> idxs;
+            for(PointID j = 0; j < n; ++j)
+                if(i != j) idxs.push_back(j);
+            std::sort(idxs.begin(), idxs.end(), [i, &time_matrix](PointID l, PointID r){
+                return time_matrix.at(i, l)<time_matrix.at(i, r);
+            });
+            EdgeWeight threshold = std::numeric_limits<EdgeWeight>::max()-1;//idxs[n-2]/2;
+            SimpleLogger().Write()<<"Initial threshold for "<<i<<"="<<threshold;
+            std::set<NodeID> blocked_cross_nodes, 
+                             all_blocked, 
+                             reached_target_phantomes;
+            for(unsigned j = 0; j < std::min(n - 1, 20u) && time_matrix.at(i, j) <= threshold; ++j)
+            {
+                TIMER_START(target);
+                NodeID cur_node = cross_nodes_table[i * n + idxs[j]];
+                /*if(!cur_node)
+                {
+                    SimpleLogger().Write()<<"Bloking "<<i<<" "<<idxs[j]<<". unreachable"; 
+                    continue;
+                }*/
+                if(blocked_cross_nodes.find(cur_node) != blocked_cross_nodes.end())
+                {
+                    TIMER_STOP(target);
+                    SimpleLogger().Write()<<"Bloking "<<i<<" "<<idxs[j]<<". blocked_cross_nodes.\t after "<<TIMER_SEC(target)<<"s"; 
+                    continue;
+                }
+                if(set_has_intesection(reached_target_phantomes, phantomes[idxs[j]]))
+                {
+                    TIMER_STOP(target);
+                    SimpleLogger().Write()<<"Bloking "<<i<<" "<<idxs[j]<<". target phantom_node already reached.\t after "<<TIMER_SEC(target)<<"s";
+                    continue;
+                }
+                                
+                all_blocked.clear();
+                std::set<NodeID> tempset;        
+                std::set_union(phantomes[i].begin(), phantomes[i].end(),
+                               phantomes[idxs[j]].begin(), phantomes[idxs[j]].end(),
+                               std::inserter(tempset, tempset.begin()));
+                std::set_difference(phantomes_all.begin(), phantomes_all.end(),
+                                    tempset.begin(), tempset.end(),
+                                    std::inserter(all_blocked, all_blocked.begin()));
+                all_blocked.insert(blocked_cross_nodes.begin(), blocked_cross_nodes.end());
+                bool is_first_node = true;
+                
+                SimpleLogger().Write(logDEBUG)<<"Test forward "<<i<<" "<<idxs[j];
+                BOOST_ASSERT_MSG(forward_hierarchy_tree[i].find(cur_node) != forward_hierarchy_tree[i].end(), 
+                                 ("forward_hierarchy_tree[" + boost::lexical_cast<std::string>(i) + "] has not key " + boost::lexical_cast<std::string>(cur_node)).c_str());
+                while(cur_node != forward_hierarchy_tree[i].at(cur_node))
+                {
+                    SimpleLogger().Write(logDEBUG)<<cur_node;
+                    if(CheckIsEdgePassThrowBlocked(forward_hierarchy_tree[i].at(cur_node), cur_node, all_blocked))
+                    {
+                        is_first_node=false;
+                        break;
+                    }
+                    cur_node=forward_hierarchy_tree[i].at(cur_node);
+                    BOOST_ASSERT_MSG(forward_hierarchy_tree[i].find(cur_node) != forward_hierarchy_tree[i].end(), 
+                                 ("forward_hierarchy_tree[" + boost::lexical_cast<std::string>(i) + "] has not key " + boost::lexical_cast<std::string>(cur_node)).c_str());
+                }
+                if(!is_first_node)
+                {
+                    blocked_cross_nodes.insert(cross_nodes_table[i * n + idxs[j]]);
+                    TIMER_STOP(target);
+                    SimpleLogger().Write()<<"Bloking "<<i<<" "<<idxs[j]<<". CheckIsEdgePassThrowBlocked forward.\t after "<<TIMER_SEC(target)<<"s";
+                    continue;
+                }
+                if(reached_target_phantomes.find(cur_node) != reached_target_phantomes.end())
+                {
+                    TIMER_STOP(target);
+                    SimpleLogger().Write()<<"Bloking "<<i<<" "<<idxs[j]<<". reached_target_phantomes target.\t after "<<TIMER_SEC(target)<<"s";
+                    continue;
+                }
+                
+                cur_node = cross_nodes_table[i * n + idxs[j]];
+                SimpleLogger().Write(logDEBUG)<<"Test backward "<<i<<" "<<idxs[j];
+                BOOST_ASSERT_MSG(backward_hierarchy_tree[idxs[j]].find(cur_node) != backward_hierarchy_tree[idxs[j]].end(), 
+                                 ("backward_hierarchy_tree[" + boost::lexical_cast<std::string>(i) + "] has not key " + boost::lexical_cast<std::string>(cur_node)).c_str());
+                while(cur_node != backward_hierarchy_tree[idxs[j]].at(cur_node))
+                {
+                    SimpleLogger().Write(logDEBUG)<<cur_node;
+                    if(CheckIsEdgePassThrowBlocked(cur_node, backward_hierarchy_tree[idxs[j]].at(cur_node), all_blocked))
+                    {
+                        is_first_node=false;
+                        break;
+                    }
+                    cur_node=backward_hierarchy_tree[idxs[j]].at(cur_node);
+                    BOOST_ASSERT_MSG(backward_hierarchy_tree[idxs[j]].find(cur_node) != backward_hierarchy_tree[idxs[j]].end(), 
+                                     ("backward_hierarchy_tree[" + boost::lexical_cast<std::string>(i) + "] has not key " + boost::lexical_cast<std::string>(cur_node)).c_str());
+                }
+                if(!is_first_node) {
+                    TIMER_STOP(target);
+                    SimpleLogger().Write()<<"Bloking "<<i<<" "<<idxs[j]<<". CheckIsEdgePassThrowBlocked backward.\t after "<<TIMER_SEC(target)<<"s";
+                    continue;
+                }
+                if(reached_target_phantomes.find(cur_node) != reached_target_phantomes.end())
+                {
+                    TIMER_STOP(target);
+                    SimpleLogger().Write()<<"Bloking "<<i<<" "<<idxs[j]<<". reached_target_phantomes target.\t after "<<TIMER_SEC(target)<<"s";
+                    continue;
+                }
+                nearest_graph[i].insert(idxs[j]);
+                reached_target_phantomes.insert(cur_node);
+                TIMER_STOP(target);
+                SimpleLogger().Write()<<"Nearest for "<<i<<" is "<<idxs[j]<<" found on "<<j<<" iteration.\t after "<<TIMER_SEC(target)<<"s";
+                if(nearest_graph[i].size() == NEAREST_RADIUS)
+                    threshold = 1.1 * time_matrix.at(i, idxs[j]);
+            }
+            TIMER_STOP(source);
+            SimpleLogger().Write()<<"Search nearest from "<<i<<" take "<<TIMER_SEC(source)<<"s";
+                
+        }
     }
 
     void ForwardRoutingStep(const unsigned source_id,
                             const unsigned number_of_locations,
                             QueryHeap &query_heap,
                             const SearchSpaceWithBuckets &backward_search_space_with_buckets,
-                            SearchSpaceWithBuckets &forward_search_space_with_buckets,
+                            HierarchyTree &hierarchy_tree,
+                            const HierarchyTree &backward_hierarchy_tree,
                             CrossNodesTable &cross_nodes_table,
                             WeightMatrix &time_matrix,
                             const TransportRestriction &tr) const
@@ -479,7 +634,11 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         const int source_distance = query_heap.GetKey(node);
         //const int source_length = length_map[node];
 
-        forward_search_space_with_buckets[node].emplace_back(source_id, source_distance, query_heap.GetData(node).parent);
+        hierarchy_tree[source_id][node] = query_heap.GetData(node).parent;
+        BOOST_ASSERT_MSG(hierarchy_tree[source_id].find(query_heap.GetData(node).parent) != hierarchy_tree[source_id].end(), 
+                         ("hierarchy_tree[" + boost::lexical_cast<std::string>(source_id) + "] "
+                          "has not parent " + boost::lexical_cast<std::string>(query_heap.GetData(node).parent) + 
+                          "for node " + boost::lexical_cast<std::string>(node)).c_str());
 
         
         // check if each encountered node has an entry
@@ -491,14 +650,16 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
             for (const NodeBucket &current_bucket : bucket_list)
             {
                 // get target id from bucket entry
-                const unsigned target_id = current_bucket.point_id;
+                const unsigned target_id = current_bucket.target_id;
                 const int target_distance = current_bucket.distance;
                 const EdgeWeight new_distance = source_distance + target_distance;
-                const unsigned index = source_id * number_of_locations + target_id;
-                const EdgeWeight current_distance = cross_nodes_table[index].second;
-                if(new_distance >= 0 && (!cross_nodes_table[index].first || new_distance < current_distance))
+                const EdgeWeight current_distance = time_matrix.at(source_id, target_id);
+                if(new_distance >= 0 && new_distance < current_distance)
                 {
-                    cross_nodes_table[index] = std::make_pair(node,new_distance);
+                    cross_nodes_table[source_id * number_of_locations + target_id] = node;
+                    BOOST_ASSERT_MSG(backward_hierarchy_tree[target_id].find(node) != backward_hierarchy_tree[source_id].end(), 
+                                    ("backward_hierarchy_tree[" + boost::lexical_cast<std::string>(target_id) + "] "
+                                    "has not node " + boost::lexical_cast<std::string>(node)).c_str());
                     time_matrix.at(source_id, target_id) = new_distance;
                 }
             }
@@ -513,6 +674,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
     void BackwardRoutingStep(const unsigned target_id,
                              QueryHeap &query_heap,
                              SearchSpaceWithBuckets &backward_search_space_with_buckets, 
+                             HierarchyTree &hierarchy_tree,
                              const TransportRestriction &tr) const
     {
         const NodeID node = query_heap.DeleteMin();
@@ -520,6 +682,11 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
 
         // store settled nodes in search space bucket
         backward_search_space_with_buckets[node].emplace_back(target_id, target_distance, query_heap.GetData(node).parent);
+        hierarchy_tree[target_id][node] = query_heap.GetData(node).parent;
+        BOOST_ASSERT_MSG(hierarchy_tree[target_id].find(query_heap.GetData(node).parent) != hierarchy_tree[target_id].end(), 
+                         ("hierarchy_tree[" + boost::lexical_cast<std::string>(target_id) + "] "
+                          "has not parent " + boost::lexical_cast<std::string>(query_heap.GetData(node).parent) + 
+                          "for node " + boost::lexical_cast<std::string>(node)).c_str());
 
         if (StallAtNode<false>(node, target_distance, query_heap, tr))
         {

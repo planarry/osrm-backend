@@ -1099,23 +1099,27 @@ OSRM.VERSION = "0.1.11", OSRM.DATE = "131122", OSRM.CONSTANTS = {}, OSRM.DEFAULT
         },
         contextmenu: function() {},
         mousemove: function(a) {
-            OSRM.Via.drawDragMarker(a)
+            //OSRM.Via.drawDragMarker(a)
         },
-        click: function(a) {
-            if (OSRM.GUI.deactivateTooltip("CLICKING"), 1 != a.originalEvent.shiftKey && 1 != a.originalEvent.metaKey && 1 != a.originalEvent.altKey)
-                if (OSRM.G.markers.hasSource()) {
-                    if (!OSRM.G.markers.hasTarget()) {
-                        var b = OSRM.G.markers.setTarget(a.latlng);
-                        OSRM.Geocoder.updateAddress(OSRM.C.TARGET_LABEL, OSRM.C.DO_FALLBACK_TO_LAT_LNG), OSRM.G.markers.route[b].show(), OSRM.Routing.getRoute({
-                            recenter: 2 == OSRM.G.markers.route.length
-                        })
-                    }
-                } else {
-                    var b = OSRM.G.markers.setSource(a.latlng);
-                    OSRM.Geocoder.updateAddress(OSRM.C.SOURCE_LABEL, OSRM.C.DO_FALLBACK_TO_LAT_LNG), OSRM.G.markers.route[b].show(), OSRM.Routing.getRoute({
-                        recenter: 2 == OSRM.G.markers.route.length
-                    })
-                }
+        click: function(e) {
+			OSRM.GUI.deactivateTooltip( "CLICKING" );
+			if( e.originalEvent.shiftKey==true || e.originalEvent.metaKey==true || e.originalEvent.altKey==true )	// only create/remove markers on simple clicks
+				return;
+			if( !OSRM.G.markers.hasSource() ) {
+				var index = OSRM.G.markers.setSource( e.latlng );
+				OSRM.Geocoder.updateAddress( OSRM.C.SOURCE_LABEL, OSRM.C.DO_FALLBACK_TO_LAT_LNG );
+				OSRM.G.markers.route[index].show();		
+				OSRM.Routing.getRoute( {recenter:OSRM.G.markers.route.length == 2} );	// allow recentering when the route is first shown 
+			} else if( !OSRM.G.markers.hasTarget() ) {
+				var index = OSRM.G.markers.setTarget( e.latlng );
+				OSRM.Geocoder.updateAddress( OSRM.C.TARGET_LABEL, OSRM.C.DO_FALLBACK_TO_LAT_LNG );
+				OSRM.G.markers.route[index].show();
+				OSRM.Routing.getRoute( {recenter:OSRM.G.markers.route.length == 2} );	// allow recentering when the route is first shown
+			} else {
+				var index = OSRM.G.markers.setVia(OSRM.G.markers.route.length - 2, e.latlng );
+				OSRM.G.markers.route[index].show();
+				OSRM.Routing.getRoute( {recenter:false} );
+			}
         },
         geolocationResponse: function(a) {
             var b = new L.LatLng(a.coords.latitude, a.coords.longitude);
@@ -1735,7 +1739,7 @@ OSRM.VERSION = "0.1.11", OSRM.DATE = "131122", OSRM.CONSTANTS = {}, OSRM.DEFAULT
 		},
         getRoute: function(a) {
 			//OSRM.JSONP.call(OSRM.Routing._buildCall()+'&compression=false', function(a){console.log(a.route_geometry)}, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT, "log");
-			if(OSRM.G.markers.route.length > 0) OSRM.JSONP.call(OSRM.Routing._buildCall().replace('viaroute','math'), showChains, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT, "math")
+			if(OSRM.G.markers.route.length > 1) OSRM.JSONP.call(OSRM.Routing._buildCall().replace('viaroute','math'), showChains, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT*100, "math")
             return OSRM.G.markers.route.length < 2 ? (void OSRM.G.route.hideRoute(), OSRM.Routing.timeoutTables()) : (a = a || {}, OSRM.JSONP.clear("dragging"), OSRM.JSONP.clear("redraw"), OSRM.JSONP.clear("table"), OSRM.JSONP.clear("route"), void OSRM.JSONP.call(OSRM.Routing._buildCall() + "&instructions=true", OSRM.Routing.showRoute, OSRM.Routing.timeoutRoute, OSRM.DEFAULTS.JSONP_TIMEOUT, "route", a), OSRM.JSONP.call(OSRM.Routing._buildCall().replace('viaroute','table'), OSRM.Routing.showTables, OSRM.Routing.timeoutTables, OSRM.DEFAULTS.JSONP_TIMEOUT, "table"))
         },
         getRoute_Reversed: function() {
@@ -2706,3 +2710,16 @@ function showAllMarkers(){
 	// }
 	// return false;
 // }
+function rgrand(min, max) {
+    return Math.random() * (max - min) + min;
+}
+function randLatLng(p1, p2) {
+    return L.latLng(rgrand(p1.lat, p2.lat), rgrand(p1.lng, p2.lng));
+}
+function addRandom(n) {
+	for(var i=0;i<n; i++) {
+		var index = OSRM.G.markers.setVia(0, randLatLng(OSRM.G.markers.route[0].position, 
+			OSRM.G.markers.route[OSRM.G.markers.route.length-1].position));
+		OSRM.G.markers.route[index].show();
+	}
+}
