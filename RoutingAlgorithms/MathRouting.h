@@ -83,12 +83,15 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                 return start;
             else return points_chain.back();
         }
-        void Grow(PointID point, const WeightMatrix &weight_matrix)
+        void Grow(PointID point, const WeightMatrix &weight_matrix, std::vector<int> &points_use_count)
         {
             forward_distance += weight_matrix.at(GetLast(), point);
             reverse_distance += weight_matrix.at(point, GetLast());
             points_chain.push_back(point);
             points_set.insert(point);
+            ++points_use_count[1 * weight_matrix.number_of_locations + point];
+            if(longest)
+                ++points_use_count[2 * weight_matrix.number_of_locations + point];
         }
         bool IsCompliant(std::set<PointID> already_attended) const
         {
@@ -236,7 +239,10 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         }
         BOOST_ASSERT(source_id == target_id);
         
-        std::vector<int> points_use_count(number_of_locations);
+        // 0 - all
+        // 1 - short
+        // 3 - longest
+        std::vector<int> points_use_count(3 * number_of_locations);
         
         std::vector<std::set<PointID>> nearest_graph(number_of_locations);
         
@@ -270,7 +276,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         }
         //FilterChains(chains_pull);
         TIMER_STOP(process);
-        OutputChainsByStart(output, chains_pull, TIMER_SEC(process));
+        OutputChainsByStart(output, chains_pull, points_use_count, nearest_graph, TIMER_SEC(process));
         return result_table;
     }
     
@@ -300,16 +306,16 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
             chain_from_cache.front()->longest = false;
             for(ChainRef chain_for_grow : track_list)
             {
-                chain_for_grow->Grow(cur_point, time_matrix);
+                chain_for_grow->Grow(cur_point, time_matrix, points_use_count_ref);
                 for(PointID point : chain_from_cache.front()->points_chain)
-                    chain_for_grow->Grow(point, time_matrix);
+                    chain_for_grow->Grow(point, time_matrix, points_use_count_ref);
             }
             return; //without recursion
         }
         else if(chain_from_cache.size() > 1)
         {
             for(ChainRef chain_for_grow : track_list)
-                chain_for_grow->Grow(cur_point, time_matrix);
+                chain_for_grow->Grow(cur_point, time_matrix, points_use_count_ref);
             return; //without recursion
         }
         
@@ -348,15 +354,20 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                 if(!chain_for_grow->HasPoint(stopper))
                     chain_for_grow->required_stoppers.insert(stopper);
             SimpleLogger().Write()<<"grow";
-            chain_for_grow->Grow(cur_point, time_matrix);
+            chain_for_grow->Grow(cur_point, time_matrix, points_use_count_ref);
         }
         
         attendance_set.insert(cur_point); // set current point as attended
+        for(PointID point : attendance_set)
+            ++points_use_count_ref[point];
         
         if(allowed_from_here.size() == 1)
         {
             // create new chain from current point
             chains_pull_ref[cur_point].emplace_back(cur_point, stopped_from_here, attendance_set.size()==1);
+            ++points_use_count_ref[1 * number_of_locations + cur_point];
+            if(attendance_set.size()==1)
+                ++points_use_count_ref[2 * number_of_locations + cur_point];
             track_list.emplace_back(chains_pull_ref[cur_point].end() - 1); //track chain from current point
             RecursiveLookForChain(*allowed_from_here.begin(),
                                   attendance_set, 
@@ -375,6 +386,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                 track_list.clear(); //stop traking
                 // create new chain from current point
                 chains_pull_ref[cur_point].emplace_back(cur_point, stopped_from_here, true);
+                ++points_use_count_ref[1 * number_of_locations + cur_point];
                 track_list.emplace_back(chains_pull_ref[cur_point].end() - 1); //track chain from current point
                 RecursiveLookForChain(next,
                                       attendance_set, 
@@ -422,15 +434,20 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
     
     void OutputChainsByStart (std::vector<char> &output,
                               const std::vector<std::vector<Chain>> &chains_pull,
+                              const std::vector<int> &points_use_count,
+                              const std::vector<std::set<PointID>> &nearest_graph,
                               double time) const
     {
+        const unsigned number_of_locations = chains_pull.size();
         JSON::Object json_root;
         //JSON::Array chain_groups_array;
         JSON::Array chains_array;
-        for(PointID start=0; start<chains_pull.size(); ++start)
+        JSON::Array counts_array;
+        JSON::Array nearest_array;
+        for(PointID start=0; start<number_of_locations; ++start)
         {
             for(const Chain &chain : chains_pull[start])
-                if(true)//chain.longest)
+                if(chain.longest)
                 {
                     JSON::Array chain_points_array;
                     chain_points_array.values.push_back(start);
@@ -438,10 +455,20 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                         chain_points_array.values.push_back(point);
                     chains_array.values.push_back(chain_points_array);
                 }
-            //chain_groups_array.values.push_back(chains_array);
+            JSON::Object point_counts_array;
+            point_counts_array.values["all"]=points_use_count[0 * number_of_locations + start];
+            point_counts_array.values["short"]=points_use_count[1 * number_of_locations + start];
+            point_counts_array.values["longest"]=points_use_count[2 * number_of_locations + start];
+            counts_array.values.push_back(point_counts_array);
+            JSON::Array nearest_array_row;
+            for(const PointID point : nearest_graph[start])
+                nearest_array_row.values.push_back(point);
+            nearest_array.values.push_back(nearest_array_row);
         }
-        json_root.values["chains"] = chains_array;//chain_groups_array;
-        json_root.values["n"] = chains_pull.size();
+        json_root.values["chains"] = chains_array;
+        json_root.values["counts"] = counts_array;
+        json_root.values["nearest"] = nearest_array;
+        json_root.values["n"] = number_of_locations;
         json_root.values["time"] = time;
         JSON::render(output, json_root);
     }

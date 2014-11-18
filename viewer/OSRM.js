@@ -2668,27 +2668,21 @@ function showAllMarkers(){
 	OSRM.G.markers.relabelViaMarkers()
 	return false;
 }
-// function showMarkersByPriority(){
-	// OSRM.Routing.clearTransitMarkers()
-	// priority=[];
-	// var max=0;
-	// for(var i=0; i<glob.n; ++i)
-		// priority[i]=0;
-	// for(var i=0;i<chains.length;i++)
-		// for(var j=0; j<chains[i].length; ++j)
-			// if(max<++priority[chains[i][j]])
-				// max=priority[chains[i][j]];
-	// var min=priority[0];
-	// for(var i=0; i<glob.n; ++i)
-		// if(min>priority[i])
-			// min=priority[i];
-	// for(var i=0; i<glob.n; ++i)
-	// {
-		// OSRM.G.markers.route[i].marker.setOpacity((priority[i]-min)/(max-min)*0.8+0.2);
-		// OSRM.G.markers.route[i].marker._icon.title=priority[i];
-	// }
-	// return false;
-// }
+function showMarkersByPriority(l){
+	var max=glob.counts[0][l];
+	var min=glob.counts[0][l];
+	for(var i=0; i<glob.n; ++i)
+		if(min>glob.counts[i][l])
+			min=glob.counts[i][l];
+		else if(max<glob.counts[i][l])
+			max=glob.counts[i][l];
+	for(var i=0; i<glob.n; ++i)
+	{
+		OSRM.G.markers.route[i].marker.setOpacity((glob.counts[i][l]-min)/(max-min)*0.8+0.2);
+		OSRM.G.markers.route[i].marker._icon.title=glob.counts[i][l];
+	}
+	return false;
+}
 // function showMarkersByPriorityDesc(){
 	// OSRM.Routing.clearTransitMarkers()
 	// priority=[];
@@ -2722,4 +2716,78 @@ function addRandom(n) {
 			OSRM.G.markers.route[OSRM.G.markers.route.length-1].position));
 		OSRM.G.markers.route[index].show();
 	}
+}
+
+expand_attention = [];
+nearest_expanded=[];
+function expand_nearest_node(start, node)
+{
+	if(!expand_attention[node])
+	{
+		expand_attention[node]=true;
+		nearest_expanded[start][node]=true;
+		for(var i=0;i<glob.nearest[node].length;++i) 
+			expand_nearest_node(start, glob.nearest[node][i])
+	}
+}
+function expand_nearest() {
+	nearest_expanded=[];
+	nearest_bidir=[];
+	for(var i=0;i<glob.n;++i) {	
+		nearest_bidir[i]=[];
+		nearest_expanded[i]=[];
+		if(!nearest_expanded[0][i])
+			nearest_expanded[0][i]=false;
+		expand_attention = [];
+		expand_nearest_node(i, i)
+	}
+	for(var i=0;i<glob.n;++i) {
+		nearest_bidir[i].push(i)
+		for(var j=0;j<i;++j)
+			if(nearest_expanded[i][j] && nearest_expanded[j][i]) {
+				nearest_bidir[i].push(j)
+				nearest_bidir[j].push(i)
+			}
+	}
+	glob.cores=[];
+	for(var i=0;i<glob.n;++i) {
+		nearest_bidir[i].sort(function(a,b){return a-b})
+		b=true;
+		for(var j=0;j<glob.cores.length;++j)
+			if(glob.cores[j][0]==nearest_bidir[i][0]){
+				b=false;
+				break;
+			}
+		if(b) glob.cores.push(nearest_bidir[i])
+	}
+	glob.cores.sort(function(a,b){return b.length-a.length})
+}
+function showCores(){
+	expand_nearest()
+	var box=document.getElementById('clusters-box');
+	var text='Выделить: <a href="#" onclick="return showAllMarkers()">все</a> <a href="#" onclick="return showMarkersByPriority()">значимые</a> <a href="#" onclick="return showMarkersByPriorityDesc()">редкие</a><ul>';
+	for(var i=0;i<glob.cores.length;i++) {
+		text+='<li><a href="#" onclick="return showCore('+i+')">'+i+'</a>=';
+		text+=glob.cores[i].join('+');
+		text+='</li>';
+	}
+	text+='</ul>';
+	box.innerHTML=text;
+}
+function showCore(cur){
+	for(var i=0; i<glob.n; ++i) {
+		OSRM.G.markers.route[i].marker.setIcon(OSRM.G.icons['marker-highlight'])
+		OSRM.G.markers.route[i].marker.setOpacity(0.8);
+	}
+	for(var i=0; i<glob.cores[cur].length; ++i)
+		OSRM.G.markers.route[glob.cores[cur][i]].marker.setIcon(OSRM.G.icons['marker-via'])
+	OSRM.G.markers.relabelViaMarkers()
+	return false;
+}
+function compr(l){
+	var sum=0;
+	for(var i=0;i<glob.cores.length;i++) 
+		if(glob.cores[i].length>=l)
+			sum+=glob.cores[i].length
+	return sum/glob.n*100;
 }
