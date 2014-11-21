@@ -1740,13 +1740,13 @@ OSRM.VERSION = "0.1.11", OSRM.DATE = "131122", OSRM.CONSTANTS = {}, OSRM.DEFAULT
         getRoute: function(a) {
 			//OSRM.JSONP.call(OSRM.Routing._buildCall()+'&compression=false', function(a){console.log(a.route_geometry)}, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT, "log");
 			if(OSRM.G.markers.route.length > 1) OSRM.JSONP.call(OSRM.Routing._buildCall().replace('viaroute','math'), showChains, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT*100, "math")
-            return OSRM.G.markers.route.length < 2 ? (void OSRM.G.route.hideRoute(), OSRM.Routing.timeoutTables()) : (a = a || {}, OSRM.JSONP.clear("dragging"), OSRM.JSONP.clear("redraw"), OSRM.JSONP.clear("table"), OSRM.JSONP.clear("route"), void OSRM.JSONP.call(OSRM.Routing._buildCall() + "&instructions=true", OSRM.Routing.showRoute, OSRM.Routing.timeoutRoute, OSRM.DEFAULTS.JSONP_TIMEOUT, "route", a), OSRM.JSONP.call(OSRM.Routing._buildCall().replace('viaroute','table'), OSRM.Routing.showTables, OSRM.Routing.timeoutTables, OSRM.DEFAULTS.JSONP_TIMEOUT, "table"))
+            //return OSRM.G.markers.route.length < 2 ? (void OSRM.G.route.hideRoute(), OSRM.Routing.timeoutTables()) : (a = a || {}, OSRM.JSONP.clear("dragging"), OSRM.JSONP.clear("redraw"), OSRM.JSONP.clear("table"), OSRM.JSONP.clear("route"), void OSRM.JSONP.call(OSRM.Routing._buildCall() + "&instructions=true", OSRM.Routing.showRoute, OSRM.Routing.timeoutRoute, OSRM.DEFAULTS.JSONP_TIMEOUT, "route", a), OSRM.JSONP.call(OSRM.Routing._buildCall().replace('viaroute','table'), OSRM.Routing.showTables, OSRM.Routing.timeoutTables, OSRM.DEFAULTS.JSONP_TIMEOUT, "table"))
         },
         getRoute_Reversed: function() {
             OSRM.G.markers.route.length < 2 || (OSRM.JSONP.clear("dragging"), OSRM.JSONP.clear("redraw"), OSRM.JSONP.clear("route"), OSRM.JSONP.call(OSRM.Routing._buildCall() + "&instructions=true", OSRM.Routing.showRoute, OSRM.Routing.timeoutRoute_Reversed, OSRM.DEFAULTS.JSONP_TIMEOUT, "route", {}))
         },
         getRoute_Redraw: function(a) {
-            OSRM.G.markers.route.length < 2 || (a = a || {}, OSRM.JSONP.clear("dragging"), OSRM.JSONP.clear("redraw"), OSRM.JSONP.call(OSRM.Routing._buildCall() + "&instructions=true", OSRM.Routing.showRoute_Redraw, OSRM.Routing.timeoutRoute, OSRM.DEFAULTS.JSONP_TIMEOUT, "redraw", a))
+            //OSRM.G.markers.route.length < 2 || (a = a || {}, OSRM.JSONP.clear("dragging"), OSRM.JSONP.clear("redraw"), OSRM.JSONP.call(OSRM.Routing._buildCall() + "&instructions=true", OSRM.Routing.showRoute_Redraw, OSRM.Routing.timeoutRoute, OSRM.DEFAULTS.JSONP_TIMEOUT, "redraw", a))
         },
         getRoute_Dragging: function() {
             OSRM.G.pending = !OSRM.JSONP.call(OSRM.Routing._buildCall() + "&alt=false&instructions=false", OSRM.Routing.showRoute_Dragging, OSRM.Routing.timeoutRoute_Dragging, OSRM.DEFAULTS.JSONP_TIMEOUT, "dragging"), OSRM.JSONP.call(OSRM.Routing._buildCall().replace('viaroute','table'), OSRM.Routing.showTables, OSRM.Routing.timeoutTables, OSRM.DEFAULTS.JSONP_TIMEOUT, "table")
@@ -2619,7 +2619,8 @@ OSRM.VERSION = "0.1.11", OSRM.DATE = "131122", OSRM.CONSTANTS = {}, OSRM.DEFAULT
 function showChains(a){
 	window.glob=a
 	window.chains=window.glob.chains;
-	var box=document.getElementById('clusters-box');
+	showDAG()
+	/*var box=document.getElementById('clusters-box');
 	var text='Выделить: <a href="#" onclick="return showAllMarkers()">все</a> <a href="#" onclick="return showMarkersByPriority()">значимые</a> <a href="#" onclick="return showMarkersByPriorityDesc()">редкие</a><ul>';
 	for(var i=0;i<chains.length;i++) {
 		text+='<li><a href="#" onclick="return showChain('+i+')">'+i+'</a>=';
@@ -2629,7 +2630,7 @@ function showChains(a){
 		text+='</li>';
 	}
 	text+='</ul>';
-	box.innerHTML=text;
+	box.innerHTML=text;*/
 }
 function showChain(cur){
 	for(var i=0; i<glob.n; ++i) {
@@ -2790,4 +2791,33 @@ function compr(l){
 		if(glob.cores[i].length>=l)
 			sum+=glob.cores[i].length
 	return sum/glob.n*100;
+}
+var dag=new OSRM.MultiRoute("dag");
+var innercore=new OSRM.MultiRoute("innercore");
+function showDAG()
+{
+	showCores();
+	OSRM.G.route.hideRoute();
+	dag.clearRoutes();
+	innercore.clearRoutes();
+	for(var i=0;i<glob.n;++i)
+		for(var j=0;j<glob.nearest[i].length;++j) {
+			var b = OSRM.G.active_routing_server_url + "?z=" + OSRM.G.map.getZoom() + "&output=json&jsonp=%jsonp&alt=false&instructions=false";
+			b += "&loc=" + OSRM.G.markers.route[i].position.lat.toFixed(OSRM.C.PRECISION) + 
+				"," + OSRM.G.markers.route[i].position.lng.toFixed(OSRM.C.PRECISION);
+			b += "&loc=" + OSRM.G.markers.route[glob.nearest[i][j]].position.lat.toFixed(OSRM.C.PRECISION) + 
+				"," + OSRM.G.markers.route[glob.nearest[i][j]].position.lng.toFixed(OSRM.C.PRECISION);
+			if(nearest_expanded[glob.nearest[i][j]][i])
+				innercore.addRoute([OSRM.G.markers.route[i].position, OSRM.G.markers.route[glob.nearest[i][j]].position]);
+			else 
+				dag.addRoute([OSRM.G.markers.route[i].position, OSRM.G.markers.route[glob.nearest[i][j]].position]);
+			/*OSRM.JSONP.call(b, function(response){
+				var geometry = OSRM.RoutingGeometry._decode(response.route_geometry, OSRM.C.PRECISION );
+				dag.addRoute(geometry);
+			}, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT, "dag_draw_"+i+"_"+glob.nearest[i][j]);*/
+		}
+	dag.show();
+	innercore.setStyle({color:'#222222', weight:2, dashArray:"8,6"});
+	dag.setStyle({color:'#0033FF', weight:2, dashArray:""});
+	innercore.show();
 }

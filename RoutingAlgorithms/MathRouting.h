@@ -545,7 +545,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
             std::set<NodeID> blocked_cross_nodes, 
                              all_blocked, 
                              reached_target_phantomes;
-            for(unsigned j = 0; j < std::min(n - 1, 20u) && time_matrix.at(i, j) <= threshold; ++j)
+            for(unsigned j = 0; j < std::min(n - 1, 20u) && time_matrix.at(i, idxs[j]) <= threshold; ++j)
             {
                 TIMER_START(target);
                 NodeID cur_node = cross_nodes_table[i * n + idxs[j]];
@@ -639,11 +639,10 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                 TIMER_STOP(target);
                 SimpleLogger().Write()<<"Nearest for "<<i<<" is "<<idxs[j]<<" found on "<<j<<" iteration.\t after "<<TIMER_SEC(target)<<"s";
                 if(nearest_graph[i].size() == NEAREST_RADIUS)
-                    threshold = 1.1 * time_matrix.at(i, idxs[j]);
+                    threshold = 1 * time_matrix.at(i, idxs[j]);
             }
             TIMER_STOP(source);
             SimpleLogger().Write()<<"Search nearest from "<<i<<" take "<<TIMER_SEC(source)<<"s";
-                
         }
     }
 
