@@ -63,8 +63,7 @@ template <class DataFacadeT> class MathPlugin : public BasePlugin
         }
 
         const bool checksum_OK = (route_parameters.check_sum == raw_route.check_sum);
-        unsigned max_locations =
-            std::min(1000u, static_cast<unsigned>(raw_route.raw_via_node_coordinates.size()));
+        unsigned max_locations = static_cast<unsigned>(raw_route.raw_via_node_coordinates.size());
         PhantomNodeArray phantom_node_vector(max_locations);
         for (unsigned i = 0; i < max_locations; ++i)
         {
@@ -86,10 +85,10 @@ template <class DataFacadeT> class MathPlugin : public BasePlugin
 
             BOOST_ASSERT(phantom_node_vector[i].front().isValid(facade->GetNumberOfNodes()));
         }
-        std::shared_ptr<std::vector<unsigned int>> points =
-              search_engine_ptr->math(phantom_node_vector, 
-                                      route_parameters.transport_restrictions.front(), 
-                                      reply.content);
+        search_engine_ptr->math(phantom_node_vector, 
+                                route_parameters.coordinates,
+                                route_parameters.transport_restrictions.front(), 
+                                reply.content);
         //for(auto p : *points)
         //    SimpleLogger().Write()<<p;
         TIMER_STOP(request);
