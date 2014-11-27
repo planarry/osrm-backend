@@ -1692,10 +1692,10 @@ OSRM.VERSION = "0.1.11", OSRM.DATE = "131122", OSRM.CONSTANTS = {}, OSRM.DEFAULT
         timeoutRoute: function() {
             OSRM.G.response = {
                 via_points: []
-            }, OSRM.RoutingGeometry.showNA(), OSRM.RoutingNoNames.showNA(), OSRM.RoutingDescription.showNA(OSRM.loc("TIMED_OUT")), OSRM.Routing._snapRoute()
+            }, OSRM.RoutingNoNames.showNA(), OSRM.RoutingDescription.showNA(OSRM.loc("TIMED_OUT")), OSRM.Routing._snapRoute()
         },
         timeoutRoute_Dragging: function() {
-            OSRM.RoutingGeometry.showNA(), OSRM.RoutingDescription.showNA(OSRM.loc("TIMED_OUT"))
+            OSRM.RoutingDescription.showNA(OSRM.loc("TIMED_OUT"))
         },
         timeoutRoute_Reversed: function() {
             OSRM.G.markers.reverseMarkers(), OSRM.Routing.timeoutRoute()

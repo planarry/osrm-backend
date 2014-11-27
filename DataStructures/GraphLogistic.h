@@ -78,6 +78,7 @@ class GraphLogistic
     std::list<std::vector<PointID>> tours;
     std::map<PointID, std::pair<PointID, PointID>> tail_gate_bounds;
     std::set<PointID> attended_points;
+    unsigned begin_offset, end_offset;
     
     void findCorePoints() 
     {
@@ -217,12 +218,12 @@ class GraphLogistic
         return (B.first-A.first) * (C.second-B.second) - (B.second-A.second) * (C.first-B.first); 
     }
     
-    void coreCWVisitation(CoreID cur_core, PointID from, PointID first)
+    void coreCWVisitation(std::vector<PointID> &tour, CoreID cur_core, PointID from, PointID first)
     {
         PointID cur_node = first;
         PointID prev_node = from;
         attended_points.insert(cur_node);
-        tours.back().push_back(cur_node);
+        tour.push_back(cur_node);
         while(true)
         {
             auto i = full_forward_graph[cur_node].begin();
@@ -245,7 +246,7 @@ class GraphLogistic
             prev_node=cur_node;
             cur_node=next;
             attended_points.insert(cur_node);
-            tours.back().push_back(cur_node);
+            tour.push_back(cur_node);
             //if(tours.back().size() >= MAX_TOUR_LENGTH)
             //    tours.emplace_back();
         }
@@ -273,39 +274,70 @@ class GraphLogistic
         std::cout << "try insert " << point << " somewhere between " << *lbound << " and " << *(rbound - 1) << std::endl;
         std::vector<PointID> bestTour;
         int bestCost = UNREACHED_WEIGHT;
+        bool forward;
         
-        insert1opt(point, lbound, rbound, bestTour, bestCost);
-        insert2opt(point, lbound, rbound, bestTour, bestCost);
-        insert3opt(point, lbound, rbound, bestTour, bestCost);
+        auto insertPoint = [point](std::vector<PointID> &tour){ tour.push_back(point); };
+        do1opt(insertPoint, lbound, rbound, bestTour, bestCost, forward);
+        do2opt(insertPoint, lbound, rbound, bestTour, bestCost, forward);
+        do3opt(insertPoint, lbound, rbound, bestTour, bestCost, forward);
         
         if(bestCost == UNREACHED_WEIGHT) return false;
+        
+        if(!forward)
+            begin_offset^=(end_offset^=begin_offset^=end_offset);
         
         tours.back() = std::move(bestTour);
         std::cout << "best result is " << std::endl << tours.back() << std::endl;
         return true;
     }
     
-    bool tryInsert(PointID point, std::set<TourBoundsPair> tour_bounds_set)
+    bool tryInsertRange(TourBound from, TourBound to, TourBound lbound, TourBound rbound)
     {
+        if(rbound-lbound!=0)
+            std::cout << "try insert range somewhere between " << *lbound << " and " << *(rbound - 1) << std::endl;
         std::vector<PointID> bestTour;
         int bestCost = UNREACHED_WEIGHT;
+        bool forward;
         
-        for(auto bounds : tour_bounds_set)
-        {
-            std::cout << "try insert " << point << " somewhere between " << *(bounds->first+1) << " and " << *(bounds->second-1) << std::endl;
-            insert1opt(point, bounds->first+1, bounds->second, bestTour, bestCost);
-            insert2opt(point, bounds->first+1, bounds->second, bestTour, bestCost);
-            insert3opt(point, bounds->first+1, bounds->second, bestTour, bestCost);
-        }
+        auto insertRange = [from, to](std::vector<PointID> &tour){ tour.insert(tour.end(), from, to); };
+        do1opt(insertRange, lbound, rbound, bestTour, bestCost, forward);
+        do2opt(insertRange, lbound, rbound, bestTour, bestCost, forward);
+        do3opt(insertRange, lbound, rbound, bestTour, bestCost, forward);
         
         if(bestCost == UNREACHED_WEIGHT) return false;
+        
+        if(!forward)
+            begin_offset^=(end_offset^=begin_offset^=end_offset);
         
         tours.back() = std::move(bestTour);
         std::cout << "best result is " << std::endl << tours.back() << std::endl;
         return true;
     }
     
-    void insert1opt(PointID point, TourBound lbound, TourBound rbound, std::vector<PointID> &bestTour, int &bestCost)
+    bool postOptimize(TourBound lbound, TourBound rbound)
+    {
+        std::cout << "try postoptimize somewhere between " << *lbound << " and " << *(rbound - 1) << std::endl;
+        std::vector<PointID> bestTour;
+        int bestCost = UNREACHED_WEIGHT;
+        bool forward;
+        
+        auto doNothing = [](std::vector<PointID> &tour){ };
+        do1opt(doNothing, lbound, rbound, bestTour, bestCost, forward);
+        do2opt(doNothing, lbound, rbound, bestTour, bestCost, forward);
+        do3opt(doNothing, lbound, rbound, bestTour, bestCost, forward);
+        
+        if(bestCost == UNREACHED_WEIGHT) return false;
+        
+        if(!forward)
+            begin_offset^=(end_offset^=begin_offset^=end_offset);
+        
+        tours.back() = std::move(bestTour);
+        std::cout << "best result is " << std::endl << tours.back() << std::endl;
+        return true;
+    }
+    
+    template<class Action> 
+    void do1opt(Action action, TourBound lbound, TourBound rbound, std::vector<PointID> &bestTour, int &bestCost, bool &forward)
     {
         std::cout << "opt1" << std::endl;
         const auto begin = tours.back().begin();
@@ -318,53 +350,66 @@ class GraphLogistic
             tempTour.reserve(tours.back().size() + 1);
             
             std::copy(begin, iter, std::back_inserter(tempTour));
-            tempTour.push_back(point);
+            action(tempTour);
             std::copy(iter, end, std::back_inserter(tempTour));
             
             //if(!checkRouteExists(tempTour)) continue;
             int tempCost = cost(tempTour);
-            std::cout << "route " << tempTour << " cost " << tempCost;
             if(bestCost > tempCost)
             {
-                std::cout << " is best!";
+                std::cout << "route " << tempTour << " cost " << tempCost << " is best!" << std::endl;
                 bestTour = std::move(tempTour);
                 bestCost = tempCost;
+                forward = true;
             }
-            std::cout << std::endl;
+            //else std::cout << "route " << tempTour << " cost " << tempCost << std::endl;
         }
     }
     
-    void insert2opt(PointID point, TourBound lbound, TourBound rbound, std::vector<PointID> &bestTour, int &bestCost)
+    template<class Action> 
+    void do2opt(Action action, TourBound lbound, TourBound rbound, std::vector<PointID> &bestTour, int &bestCost, bool &forward)
     {
         std::cout << "opt2" << std::endl;
         const auto begin = tours.back().begin();
         const auto end = tours.back().end();        
         for(auto iter1=lbound; iter1 <= rbound; ++iter1)
-            for(auto iter2=iter1 + 2; iter2 <= rbound; ++iter2)
+            for(auto iter2=lbound; iter2 <= rbound; ++iter2)
             {
                 //if(!checkPointsCompilable(tempTour)) continue;
                 
                 std::vector<PointID> tempTour;
                 tempTour.reserve(tours.back().size() + 1);
-                std::copy(begin, iter1, std::back_inserter(tempTour));
-                tempTour.push_back(point);
-                std::reverse_copy(iter1, iter2, std::back_inserter(tempTour));
-                std::copy(iter2, end, std::back_inserter(tempTour));
+                if(iter2 > iter1 + 1)
+                {
+                    std::copy(begin, iter1, std::back_inserter(tempTour));
+                    action(tempTour);
+                    std::reverse_copy(iter1, iter2, std::back_inserter(tempTour));
+                    std::copy(iter2, end, std::back_inserter(tempTour));
+                }
+                else if(iter2 < iter1)
+                {
+                    std::reverse_copy(iter1, end, std::back_inserter(tempTour));
+                    std::copy(iter2, iter1, std::back_inserter(tempTour));
+                    action(tempTour);
+                    std::reverse_copy(begin, iter2, std::back_inserter(tempTour));
+                }
+                else continue;
                 
                 //if(!checkRouteExists(tempTour)) continue;
                 int tempCost = cost(tempTour);
-                std::cout << "route " << tempTour << " cost " << tempCost;
                 if(bestCost > tempCost)
                 {
-                    std::cout << " is best!";
+                    std::cout << "route " << tempTour << " cost " << tempCost << " is best!" << std::endl;
                     bestTour = std::move(tempTour);
                     bestCost = tempCost;
+                    forward = iter2 > iter1 + 1;
                 }
-                std::cout << std::endl;
+                //else std::cout << "route " << tempTour << " cost " << tempCost << std::endl;
             }
     }
     
-    void insert3opt(PointID point, TourBound lbound, TourBound rbound, std::vector<PointID> &bestTour, int &bestCost)
+    template<class Action> 
+    void do3opt(Action action, TourBound lbound, TourBound rbound, std::vector<PointID> &bestTour, int &bestCost, bool &forward)
     {
         std::cout << "opt3" << std::endl;
         const auto begin = tours.back().begin();
@@ -380,7 +425,7 @@ class GraphLogistic
                     if(iter3 > iter2 + 1)
                     {
                         std::copy(begin, iter1, std::back_inserter(tempTour));
-                        tempTour.push_back(point);
+                        action(tempTour);
                         std::reverse_copy(iter1, iter2, std::back_inserter(tempTour));
                         std::reverse_copy(iter2, iter3, std::back_inserter(tempTour));
                         std::copy(iter3, end, std::back_inserter(tempTour));
@@ -390,7 +435,7 @@ class GraphLogistic
                     {
                         std::reverse_copy(iter2, end, std::back_inserter(tempTour));
                         std::copy(iter3, iter1, std::back_inserter(tempTour));
-                        tempTour.push_back(point);
+                        action(tempTour);
                         std::reverse_copy(iter1, iter2, std::back_inserter(tempTour));
                         std::reverse_copy(begin, iter3, std::back_inserter(tempTour));
                     }
@@ -398,87 +443,97 @@ class GraphLogistic
                     
                     //if(!checkRouteExists(tempTour)) continue;
                     int tempCost = cost(tempTour);
-                    std::cout << "route " << tempTour << " cost " << tempCost;
                     if(bestCost > tempCost)
                     {
-                        std::cout << " is best!";
+                        std::cout << "route " << tempTour << " cost " << tempCost << " is best!" << std::endl;
                         bestTour = std::move(tempTour);
                         bestCost = tempCost;
+                        forward = iter3 > iter2 + 1;
                     }
-                    std::cout << std::endl;
+                    //else std::cout << "route " << tempTour << " cost " << tempCost << std::endl;
                 }
     }
 
     //void getTailGateBounds()
     void startRoutingFromCore(CoreID cur_core)
     {
-        const unsigned begin_offset = tours.back().size();
-        coreCWVisitation(cur_core, 0, core_start_points[cur_core]);
-        std::cout << "initial solution is" << std::endl << tours.back() << std::endl;
-        for(PointID point : core_points[cur_core])
-            if(attended_points.find(point) == attended_points.end())
-                tryInsert(point, tours.back().begin() + begin_offset, tours.back().end());
-            
-        std::cout << "core solution is" << std::endl << tours.back() << std::endl;
-            
-        auto is_core_point=[&](PointID i) { return core_points[cur_core].find(i) != core_points[cur_core].end(); };
-        for(PointID point : core_tails[cur_core])
-            if(attended_points.find(point) == attended_points.end() && tail_cores[point].size() == 1)
-            {
-                std::cout << "point " << point << " has " << tail_cores[point][cur_core].size() << " gates" << std::endl;
-                std::map<TourBound, TourBoundsPair> gate_bounds_map;
-                std::set<TourBoundsPair> gate_bounds_set;
-                for(PointID gate : tail_cores[point][cur_core])
+        begin_offset = 0;
+        end_offset = 0;
+        PointID from_point = 0;
+        PointID start_point = core_start_points[cur_core];
+        while(true)
+        {
+            std::vector<PointID> tempTour;
+            coreCWVisitation(tempTour, cur_core, from_point, start_point);
+            std::cout << "initial solution is" << std::endl << tempTour << std::endl;
+            tryInsertRange(tempTour.begin(), tempTour.end(), tours.back().begin() + begin_offset, tours.back().end() - end_offset);
+            for(PointID point : core_points[cur_core])
+                if(attended_points.find(point) == attended_points.end())
+                    tryInsert(point, tours.back().begin() + begin_offset, tours.back().end() - end_offset);
+            postOptimize(tours.back().begin() + begin_offset, tours.back().end() - end_offset);
+                
+            std::cout << "core solution is" << std::endl << tours.back() << std::endl;
+                
+            auto is_core_point=[&](PointID i) { return core_points[cur_core].find(i) != core_points[cur_core].end(); };
+            for(PointID point : core_tails[cur_core])
+                if(attended_points.find(point) == attended_points.end() && tail_cores[point].size() == 1)
                 {
-                    auto gate_iter = std::find(tours.back().begin() + begin_offset, tours.back().end(), gate);
-                    auto rbound = std::find_if(gate_iter + 1, tours.back().end(), is_core_point);
-                    //if(rbound != tours.back().end()) ++rbound;
-                    auto lbound = std::find_if(std::reverse_iterator<TourBound>(gate_iter-1), 
-                                               std::reverse_iterator<TourBound>(tours.back().begin() + begin_offset), 
-                                               is_core_point).base();
-                    auto map_liter = gate_bounds_map.find(lbound);
-                    auto map_riter = gate_bounds_map.find(rbound);
-                    if(map_liter != gate_bounds_map.end() && map_riter != gate_bounds_map.end())
+                    TourBound min_lbound=tours.back().end() - end_offset;
+                    TourBound max_rbound=tours.back().begin() + begin_offset;
+                    for(PointID gate : tail_cores[point][cur_core])
                     {
-                        TourBoundsPair pair(new std::pair<TourBound, TourBound>(map_liter->second->first, map_riter->second->second));
-                        gate_bounds_set.erase(map_liter->second);
-                        gate_bounds_set.erase(map_riter->second);
-                        gate_bounds_map.erase(map_liter);
-                        gate_bounds_map.erase(map_riter);
-                        gate_bounds_map[lbound] = pair;
-                        gate_bounds_map[rbound] = pair;
-                        gate_bounds_map[gate_iter] = pair;
-                        gate_bounds_set.insert(pair);
+                        auto gate_iter = std::find(tours.back().begin() + begin_offset, tours.back().end() - end_offset, gate);
+                        auto rbound = std::find_if(gate_iter + 1, tours.back().end() - end_offset, is_core_point);
+                        if(rbound != tours.back().end() - end_offset) ++rbound;
+                        auto lbound = std::find_if(std::reverse_iterator<TourBound>(gate_iter-1), 
+                                                std::reverse_iterator<TourBound>(tours.back().begin() + begin_offset), 
+                                                is_core_point).base();
+                        if(min_lbound > lbound) min_lbound = lbound;
+                        if(max_rbound < rbound) max_rbound = rbound;
                     }
-                    else if(map_liter != gate_bounds_map.end())
-                    {
-                        TourBoundsPair pair(new std::pair<TourBound, TourBound>(map_liter->second->first, rbound));
-                        gate_bounds_set.erase(map_liter->second);
-                        gate_bounds_map.erase(map_liter);
-                        gate_bounds_map[lbound] = pair;
-                        gate_bounds_map[gate_iter] = pair;
-                        gate_bounds_set.insert(pair);
-                    }
-                    else if(map_riter != gate_bounds_map.end())
-                    {
-                        TourBoundsPair pair(new std::pair<TourBound, TourBound>(lbound, map_riter->second->second));
-                        gate_bounds_set.erase(map_riter->second);
-                        gate_bounds_map.erase(map_riter);
-                        gate_bounds_map[rbound] = pair;
-                        gate_bounds_map[gate_iter] = pair;
-                        gate_bounds_set.insert(pair);
-                    }
-                    else
-                    {
-                        TourBoundsPair pair(new std::pair<TourBound, TourBound>(lbound, rbound));
-                        gate_bounds_map[gate_iter] = pair;
-                        gate_bounds_set.insert(pair);
-                    }
+                    tryInsert(point, min_lbound, max_rbound);
                 }
-                std::cout << "... witch reduced to " << gate_bounds_set.size() << " gates" << std::endl;
-                tryInsert(point, gate_bounds_set);
-            }
+            postOptimize(tours.back().begin() + begin_offset, tours.back().end() - end_offset);
             
+            CoreID next_core;
+            int min_dist = UNREACHED_WEIGHT;
+            PointID min_out_gate, min_in_gate;
+            for(PointID out_gate : core_gates[cur_core])
+                for(auto core : tail_cores[out_gate])
+                    for(PointID in_gate : core.second)
+                        if(min_dist > time_matrix(out_gate, in_gate))
+                        {
+                            min_dist = time_matrix(out_gate, in_gate);
+                            next_core = core.first;
+                            min_out_gate = out_gate;
+                            min_in_gate = in_gate;
+                        }
+            if(min_dist == UNREACHED_WEIGHT)
+                break;
+            
+            TourBound min_lbound=tours.back().end() - end_offset;
+            TourBound max_rbound=tours.back().begin() + begin_offset;
+            for(PointID out_gate : core_gates[cur_core])
+                if(tail_cores[out_gate].find(next_core) != tail_cores[out_gate].end())
+                    for(PointID inner_prev : nearest_reverse_graph[out_gate])
+                        if(core_points[cur_core].find(inner_prev) != core_points[cur_core].end())
+                        {
+                            auto gate_iter = std::find(tours.back().begin() + begin_offset, tours.back().end() - end_offset, inner_prev);
+                            auto rbound = std::find_if(gate_iter + 1, tours.back().end() - end_offset, is_core_point);
+                            if(rbound != tours.back().end() - end_offset) ++rbound;
+                            auto lbound = std::find_if(std::reverse_iterator<TourBound>(gate_iter-1), 
+                                                    std::reverse_iterator<TourBound>(tours.back().begin() + begin_offset), 
+                                                    is_core_point).base();
+                            if(min_lbound > lbound) min_lbound = lbound;
+                            if(max_rbound < rbound) max_rbound = rbound;
+                        }
+            begin_offset += min_lbound - tours.back().begin();
+            end_offset += tours.back().end() - max_rbound;
+            //tryInsert(min_out_gate, min_lbound, max_rbound);
+            cur_core = next_core;
+            from_point = min_out_gate;
+            start_point = min_in_gate;
+        }
     }
 public:
     
