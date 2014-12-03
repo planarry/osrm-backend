@@ -2658,7 +2658,7 @@ function showChain(cur){
 		OSRM.G.markers.route[chains[cur][i]].marker.setIcon(OSRM.G.icons['marker-via'])
 	OSRM.G.markers.route[chains[cur][0]].marker.setIcon(OSRM.G.icons['marker-source'])
 	OSRM.G.markers.route[chains[cur][chains[cur].length-1]].marker.setIcon(OSRM.G.icons['marker-target'])
-	OSRM.G.markers.relabelViaMarkers()
+	//OSRM.G.markers.relabelViaMarkers()
 	return false;
 }
 function showAllMarkers(){
@@ -2674,7 +2674,7 @@ function showAllMarkers(){
 		OSRM.G.markers.route[i].marker.setIcon(OSRM.G.icons['marker-via'])
 	OSRM.G.markers.route[0].marker.setIcon(OSRM.G.icons['marker-source'])
 	OSRM.G.markers.route[glob.n-1].marker.setIcon(OSRM.G.icons['marker-target'])
-	OSRM.G.markers.relabelViaMarkers()
+	//OSRM.G.markers.relabelViaMarkers()
 	return false;
 }
 function showMarkersByPriority(l){
@@ -2790,7 +2790,7 @@ function showCore(cur){
 	}
 	for(var i=0; i<glob.cores[cur].length; ++i)
 		OSRM.G.markers.route[glob.cores[cur][i]].marker.setIcon(OSRM.G.icons['marker-via'])
-	OSRM.G.markers.relabelViaMarkers()
+	//OSRM.G.markers.relabelViaMarkers()
 	return false;
 }
 function compr(l){
@@ -2845,4 +2845,12 @@ function showDAG()
 	innercore.show();
 	tsp.show();
 	tsp.setStyle({color:'#0033FF', weight:5, dashArray:""});
+	for(var i=1; i<glob.n-1; ++i)
+		OSRM.G.markers.route[i].marker.setIcon(OSRM.G.icons['marker-via'])
+	OSRM.G.markers.route[0].marker.setIcon(OSRM.G.icons['marker-drag'])
+	OSRM.G.markers.route[glob.n-1].marker.setIcon(OSRM.G.icons['marker-drag'])
+	OSRM.G.markers.route[glob.tours[0][1]].marker.setIcon(OSRM.G.icons['marker-source'])
+	OSRM.G.markers.route[glob.tours[0][glob.tours[0].length-2]].marker.setIcon(OSRM.G.icons['marker-target'])
+	for(var i=0; i<glob.tours[0].length-1; i++)
+		OSRM.G.markers.route[glob.tours[0][i]].marker.setLabel(i)
 }

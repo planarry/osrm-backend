@@ -268,6 +268,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         
         
         std::vector<std::list<PointID>> nearest_forward_graph(n), nearest_reverse_graph(n);
+        TIMER_START(solution);
         TIMER_START(graph);
         BuildFullGraph(nearest_forward_graph, 
                        nearest_reverse_graph, 
@@ -279,7 +280,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                        all_phantomes, 
                        n);
         TIMER_STOP(graph);
-        SimpleLogger().Write() << "Ful graph " << TIMER_SEC(graph);
+        TIMER_START(math);
         GraphLogistic math(n, 
                            time_matrix, 
                            length_matrix, 
@@ -288,6 +289,11 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                            coordinates);
         math.run();
         math.render(output);
+        TIMER_STOP(math);
+        TIMER_STOP(solution);
+        SimpleLogger().Write() << "Ful graph " << TIMER_SEC(graph) << "s";
+        SimpleLogger().Write() << "Math takes " << TIMER_SEC(math) << "s";
+        SimpleLogger().Write() << "Common solution takes " << TIMER_SEC(solution) << "s";
         //OutputChainsByStart(output, nearest_forward_graph);
         
         
@@ -404,7 +410,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                 if(reached_target_phantomes.find(cur_node) != reached_target_phantomes.end())
                 {
                     TIMER_STOP(target);
-                    SimpleLogger().Write()<<"Bloking "<<i<<" "<<idxs[j]<<". reached_target_phantomes target.\t after "<<TIMER_SEC(target)<<"s";
+                    SimpleLogger().Write()<<"Bloking "<<i<<" "<<idxs[j]<<". reached_target_phantomes source.\t after "<<TIMER_SEC(target)<<"s";
                     continue;
                 }
                 
@@ -431,7 +437,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                 }
                 nearest_forward_graph[i].push_back(idxs[j]);
                 nearest_reverse_graph[idxs[j]].push_back(i);
-                reached_target_phantomes.insert(cur_node);
+                if(time_matrix(i, idxs[j]) > 0) reached_target_phantomes.insert(cur_node);
                 TIMER_STOP(target);
                 SimpleLogger().Write()<<"Nearest for "<<i<<" is "<<idxs[j]<<" found on "<<j<<" iteration.\t after "<<TIMER_SEC(target)<<"s";
                 //if(nearest_graph[i].size() == NEAREST_RADIUS)
