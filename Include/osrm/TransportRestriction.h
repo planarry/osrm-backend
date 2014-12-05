@@ -26,7 +26,7 @@ struct TransportRestriction
     //SimpleLogger().Write()<<"height="<<height;
     //SimpleLogger().Write()<<"maxload="<<data.maxload;
     //SimpleLogger().Write()<<"maxheight="<<data.maxheight;
-    return (data.maxload<load) || (data.maxheight<height);
+    return (data.maxload<=load) || (data.maxheight<=height);
   }
   
   template <typename Iterator>
