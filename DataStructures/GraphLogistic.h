@@ -12,10 +12,15 @@
 #include <list>
 #include <algorithm>
 #include <set>
+#include <unordered_set>
 #include <map>
 #include <utility>
 #include <ostream>
 #include <memory>
+
+namespace std {
+template<class _Value, class _Hash = hash< _Value >, class _Pred = std::equal_to< _Value >, class _Alloc = std::allocator< _Value > >
+class unordered_set;}
 
 namespace ublas = boost::numeric::ublas;
 
@@ -31,7 +36,7 @@ std::ostream& operator<< (std::ostream& out, const std::vector<T>& v) {
 }
 
 const unsigned SPECIAL_ID = std::numeric_limits<unsigned>::max();
-
+class Core;
 class ChainBase {
     
     ChainID id;
@@ -39,10 +44,10 @@ class ChainBase {
     bool is_attend;
     std::set<CoreID> cores_data;
     std::set<ChainID> gates_data;
-    std::vector<ChainID> &chains;
-    std::vector<CoreID> &cores;
+    std::vector<ChainBase> &chains;
+    std::vector<Core> &cores;
 public:
-    ChainBase(ChainID id, std::vector<ChainID> &chains, std::vector<CoreID> &cores)
+    ChainBase(ChainID id, std::vector<ChainBase> &chains, std::vector<Core> &cores)
         : id(id), coreInner(SPECIAL_ID), is_attend(false), chains(chains), cores(cores)
     {
     }
@@ -140,8 +145,8 @@ class ReverseChain : ChainBase {
 class Core {
     CoreID id;
     std::set<ChainID> inners_data, tails_data;
-    std::vector<ChainID> &chains;
-    std::vector<CoreID> &cores;
+    std::vector<ChainBase> &chains;
+    std::vector<Core> &cores;
 public:
     void insert(ChainID inner)
     {
@@ -178,7 +183,19 @@ public:
         return data.size();
     }
     int cost(){
-        return 0;
+        int sum=time_matrix(0, tour.front()) + time_matrix(tour.back(), 0);
+        for(unsigned i=1; i<tour.size(); ++i)
+        {
+            sum+=time_matrix(tour[i - 1], tour[i]);
+            for(unsigned j=1; j<=MOVING_MEAN_RADIUS; ++j)
+            {
+                if(int(i - j) > 0)
+                    sum += time_matrix(tour[i - j - 1], tour[i]) / (j * MOVING_MEAN_FACTOR);
+                if(i + j < tour.size())
+                    sum += time_matrix(tour[i - 1], tour[i + j]) / (j * MOVING_MEAN_FACTOR);
+            }
+        }
+        return sum;
     }
     void copy(iterator begin, iterator end)
     {
@@ -190,9 +207,15 @@ public:
             this->add(chains[chain].reverse());
         });
     }
-    void findBounds(unsigned int begin_offset, unsigned int end_offset, ChainID gate, unsigned int lbound, unsigned int rbound)
+    void findBounds(ChainID gate, unsigned int lbound, unsigned int rbound)
     {
-        
+        auto is_core_point=[&](ChainID i) { return chains[i].isInner(); };
+        auto gate_iter = begin(indexes[gate]);
+        rbound = end() - std::find_if(gate_iter + 1, end(), is_core_point);
+        //if(rbound != tours.back().end() - end_offset) ++rbound;
+        lbound = std::find_if(std::reverse_iterator<iterator>(gate_iter-1), 
+                                std::reverse_iterator<iterator>(begin()), 
+                                is_core_point).base() - begin();
     }
     void add(ChainID cur_node)
     {
@@ -211,21 +234,25 @@ template<typename T>
 class Graph {
     unsigned n;
     std::vector<std::set<T>> forward_data, reverse_data;
+    std::vector<std::list<T>> forward_order_data;
     
 public:
     Graph() : n(0) { }
-    Graph(unsigned n) : n(n), forward_data(n), reverse_data(n) { }
+    Graph(unsigned n) : n(n), forward_data(n), reverse_data(n), forward_order_data(n) { }
     
     void asign(unsigned n)
     {
         forward_data.asign(n, std::set<T>());
         reverse_data.asign(n, std::set<T>());
+        forward_order_data.asign(n, std::list<T>());
     }
     
     void insert(T from, T to)
     {
         forward_data[from].insert(to);
         reverse_data[to].insert(from);
+        if(!has(from, to))
+            forward_order_data[from].push_back(to);
     }
     
     template<typename Iterator>
@@ -234,23 +261,19 @@ public:
         std::for_each(begin, end, [&] (T to) {
             forward_data[from].insert(to);
             reverse_data[to].insert(from);
+            if(!has(from, to))
+                forward_order_data[from].insert(to);
         });
     }
     
-    const std::set<T>& forward(T from) const
-    {
-        return forward_data[from];
-    }
+    bool has(T from, T to) const
+    { return forward_data[from].find(to) != forward_data[from].end(); }
+    
+    const std::list<T>& forward(T from) const
+    { return forward_order_data[from]; }
     
     const std::set<T>& reverse(T from) const
-    {
-        return reverse_data[from];
-    }
-    
-    bool has(T from, T to) const
-    {
-        return forward_data[from].find(to) != forward_data[from].end();
-    }
+    { return reverse_data[from]; }
 };
 
 
@@ -288,6 +311,59 @@ class GraphLogistic
     //std::set<ChainID> attended_points;
     //std::set<CoreID> attended_cores;
     unsigned begin_offset, end_offset;
+    
+    
+    void findChains()
+    {
+        std::set<std::shared_ptr<std::list<PointID>>> glueL, onedirL, bidirL;
+        std::map<PointID, std::shared_ptr<std::list<PointID>>> glueM, onedirM, bidirM;
+        for(PointID i=0; i<n_points; i++)
+            for(PointID j : full_point_graph.forward(i))
+                if(time_matrix(i, j) == 0)
+                {
+                    auto i_map_iter = glueM.find(i);
+                    auto j_map_iter = glueM.find(i);
+                    if(i_map_iter!=glueM.end() && j_map_iter!=glueM.end())
+                    {
+                        if(i_map_iter->second == j_map_iter->second) continue;
+                        i_map_iter->second->insert(i_map_iter->second->end(), j_map_iter->second->begin(), j_map_iter->second->end())
+                        for(PointID k : *j_map_iter->second)
+                            glueM[k] = i_map_iter->second;
+                        glueL.erase(j_map_iter->second);
+                    }
+                    else if(i_map_iter!=glueM.end())
+                        i_map_iter->second->push_back(j);
+                    else if(j_map_iter!=glueM.end())
+                        j_map_iter->second->push_back(i);
+                    else
+                    {
+                        auto list = std::make_shared<std::list<PointID>>({i, j});
+                        //list->emplace_back(i);
+                        //list->emplace_back(j);
+                        glueL.insert(list);
+                        glueM[i]=list;
+                        glueM[j]=list;
+                    }
+                }
+    }
+    
+    void buildNearestGraph()
+    {
+        for(ChainID i=0; i<n_chains; i++) {
+            int threshold = UNREACHED_WEIGHT;//row[std::min<unsigned>(row.size(), NEAREST_RADIUS) - 1];
+            for(const ChainID j : full_graph.forward(i))
+                if(time_matrix(i, j) <= threshold) 
+                {
+                    nearest_graph.insert(i, j);
+                    if(nearest_graph.forward(i).size() >= NEAREST_RADIUS)
+                    {
+                        if(!full_graph.forward(j).empty())
+                            threshold = std::min<int>(1.1 * time_matrix(i, j), time_matrix(i, j) + time_matrix(j, full_forward_graph_container[j].front())/2);
+                        else threshold = time_matrix(i, j);
+                    }
+                }
+        }
+    }
     
     void findCorePoints() 
     {
@@ -531,19 +607,7 @@ class GraphLogistic
     
     /*int cost(const std::vector<ChainID> &tour)
     {
-        int sum=time_matrix(0, tour.front()) + time_matrix(tour.back(), 0);
-        for(unsigned i=1; i<tour.size(); ++i)
-        {
-            sum+=time_matrix(tour[i - 1], tour[i]);
-            for(unsigned j=1; j<=MOVING_MEAN_RADIUS; ++j)
-            {
-                if(int(i - j) > 0)
-                    sum += time_matrix(tour[i - j - 1], tour[i]) / (j * MOVING_MEAN_FACTOR);
-                if(i + j < tour.size())
-                    sum += time_matrix(tour[i - 1], tour[i + j]) / (j * MOVING_MEAN_FACTOR);
-            }
-        }
-        return sum;
+        
     }*/
     
     bool checkOpt(const Tour &tempTour, Tour &bestTour)
@@ -756,12 +820,7 @@ class GraphLogistic
                         {
                             unsigned lbound, rbound;
                             tours.back().findBounds(begin_offset, end_offset, gate, lbound, rbound);
-                            /*auto gate_iter = std::find(tours.back().begin() + begin_offset, tours.back().end() - end_offset, gate);
-                            auto rbound = std::find_if(gate_iter + 1, tours.back().end() - end_offset, is_core_point);
-                            if(rbound != tours.back().end() - end_offset) ++rbound;
-                            auto lbound = std::find_if(std::reverse_iterator<TourBound>(gate_iter-1), 
-                                                    std::reverse_iterator<TourBound>(tours.back().begin() + begin_offset), 
-                                                    is_core_point).base();*/
+                            
                             if(min_lbound > lbound) min_lbound = lbound;
                             if(max_rbound < rbound) max_rbound = rbound;
                         }
@@ -823,7 +882,6 @@ public:
                   const ublas::matrix<int> time_matrix,
                   const ublas::matrix<int> length_matrix,
                   const std::vector<Container> full_forward_graph_container,
-                  const std::vector<Container> full_reverse_graph_container,
                   const std::vector<FixedPointCoordinate> &coordinates_container)
         : n_points(n_points),
           time_matrix(time_matrix),
@@ -832,6 +890,11 @@ public:
           //nearest_reverse_graph(n_points),
           //core_distances(0)
     {
+        int i=0;
+        for(const auto &row : full_forward_graph_container)
+            full_point_graph.insert(i++, row.begin(), row.end());
+        for(auto &coor : coordinates_container)
+            coordinates.emplace_back(coor.lat/1000000.0, coor.lon/1000000.0);
         /*int i=0;
         for(const auto &row : full_forward_graph_container) {
             full_forward_graph.emplace_back(row.begin(), row.end());
@@ -862,7 +925,8 @@ public:
     
     void run()
     {
-        //findChains();
+        findChains();
+        buildNearestGraph();
         findCorePoints();
         //disunitCores();
         findCoreForwardTails();
