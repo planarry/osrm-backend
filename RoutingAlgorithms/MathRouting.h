@@ -4,7 +4,7 @@
 #include "BasicRoutingInterface.h"
 #include "../DataStructures/JSONContainer.h"
 #include "../DataStructures/SearchEngineData.h"
-#include "../DataStructures/GraphLogistic.h"
+#include "../logistic/GraphLogistic.h"
 #include "../typedefs.h"
 #include "../Util/TimingUtil.h"
 
@@ -285,7 +285,6 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                            time_matrix, 
                            length_matrix, 
                            nearest_forward_graph, 
-                           nearest_reverse_graph,
                            coordinates);
         math.run();
         math.render(output);
