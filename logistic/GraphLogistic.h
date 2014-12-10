@@ -819,14 +819,14 @@ public:
         {
             JSON::Array chains_array_row;
             std::copy(chains[p]->begin(), chains[p]->end(), std::back_inserter(chains_array_row.values));
-            nearest_array.values.push_back(chains_array_row);
+            chains_array.values.push_back(chains_array_row);
         }
         json_root.values["chains"] = chains_array;
         for(CoreID c=0; c<n_cores; ++c)
         {
             JSON::Array cores_array_row;
             std::copy(cores[c].getInners().begin(), cores[c].getInners().end(), std::back_inserter(cores_array_row.values));
-            nearest_array.values.push_back(cores_array_row);
+            cores_array.values.push_back(cores_array_row);
         }
         json_root.values["cores"] = cores_array;
         json_root.values["n"] = n_points;
