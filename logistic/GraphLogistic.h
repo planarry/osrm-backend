@@ -2,6 +2,7 @@
 #define GRAPG_LOGISTIC_H
 
 #include "../DataStructures/JSONContainer.h"
+#include "../Util/TimingUtil.h"
 #include "Core.h"
 #include "Chain.h"
 #include "Graph.h"
@@ -51,6 +52,67 @@ class GraphLogistic
             glueL.erase(glue_iter->second);
         }
         else add_into_prechain_list(back, list, point, map);
+    }
+    
+    template<typename Iterator>
+    bool isBidirChinOk(bool back, Iterator begin, Iterator end)
+    {
+        PointID last, prelast;
+        if(back)
+        {
+            last = *(--end);
+            prelast = *(--end);
+        }
+        else 
+        {
+            last = *begin;
+            prelast = *(++begin);
+        }
+        for(PointID to : full_point_graph.forward(last))
+            if(prelast!=to && time_matrix(prelast, last) + time_matrix(last, to) > time_matrix(prelast, to))
+                return false;
+        for(PointID from : full_point_graph.reverse(last))
+            if(prelast!=from && time_matrix(from, last) + time_matrix(last, prelast) > time_matrix(from, prelast))
+                return false;
+        return true;
+        
+        /*int f_sum = 0, r_sum = 0;
+        Iterator cur2 = begin;
+        Iterator cur1 = cur2++;
+        for(; cur2 != end; ++cur1, ++cur2)
+        {
+            f_sum+=time_matrix(*cur1, *cur2);
+            r_sum+=time_matrix(*cur2, *cur1);
+        }
+        if(back)
+            return f_sum <= time_matrix(*begin, *cur1);
+        else
+            return r_sum <= time_matrix(*cur1, *begin);
+        /*PointID first, last;
+        if(back)
+        {
+            first = *begin;
+            last = *cur1;
+        }
+        else
+        {
+            last = *begin;
+            first = *cur1;
+        }
+        for(PointID to : full_point_graph.forward(last))
+            if(back?f_sum:r_sum + time_matrix(last, to) > time_matrix(first, to))
+                return false;
+        for(PointID from : full_point_graph.reverse(first))
+            if(time_matrix(from, first) + back?r_sum:f_sum > time_matrix(from, last))
+                return false;
+        return true;*/
+    }
+    
+    bool allowBidirChain(PointID midlePoint)
+    {
+        return full_point_graph.forward_set(midlePoint).size() == 2 && full_point_graph.reverse(midlePoint).size() == 2
+                && *full_point_graph.forward_set(midlePoint).begin() == *full_point_graph.reverse(midlePoint).begin()
+                && *(--full_point_graph.forward_set(midlePoint).end()) == *(--full_point_graph.reverse(midlePoint).end());
     }
     
     void findChains()
@@ -126,9 +188,7 @@ class GraphLogistic
                 }
             }
         for(PointID j=1; j<n_points; j++) //TODO depot
-            if(full_point_graph.forward(j).size() == 2 && full_point_graph.reverse(j).size() == 2
-                && *full_point_graph.forward_set(j).begin() == *full_point_graph.reverse(j).begin()
-                && *(--full_point_graph.forward_set(j).end()) == *(--full_point_graph.reverse(j).end()))
+            if(allowBidirChain(j))
             {
                 PointID i = full_point_graph.forward(j).front();
                 PointID k = full_point_graph.forward(j).back();
@@ -138,41 +198,150 @@ class GraphLogistic
                 if(i_map_iter!=bidirM.end() && k_map_iter!=bidirM.end())
                 {
                     if(i_map_iter->second == k_map_iter->second) continue;
-                    bool back = true;
-                    if(j_map_iter == bidirM.end())
+                    if(allowBidirChain(i) && allowBidirChain(k))
                     {
-                        back = i_map_iter->second->back() == i;
-                        add_into_prechain_list(back, i_map_iter->second, j, bidirM);
+                        bool back_i = true, back_k = true;
+                        if(j_map_iter == bidirM.end())
+                        {
+                            back_i = i_map_iter->second->back() == i;
+                            back_k = k_map_iter->second->back() == k;
+                            add_into_prechain_list(back_i, i_map_iter->second, j, bidirM);
+                        }
+                        else if(j_map_iter->second == i_map_iter->second)
+                        {
+                            back_i = i_map_iter->second->back() == j;
+                            back_k = k_map_iter->second->back() == k;
+                        }
+                        else
+                        {
+                            back_i = i_map_iter->second->back() == i;
+                            back_k = k_map_iter->second->back() == j;
+                        }
+                        
+                        auto list = k_map_iter->second;
+                        auto func = [&, back_i](const PointID p) {
+                            add_into_prechain_list(back_i, i_map_iter->second, p, bidirM);
+                        };
+                        if(back_k) std::for_each(k_map_iter->second->crbegin(), k_map_iter->second->crend(), func);
+                        else std::for_each(k_map_iter->second->cbegin(), k_map_iter->second->cend(), func);
+                        bidirL.erase(list);
                     }
-                    else back = i_map_iter->second->back() == j;
-                    for(PointID p : *k_map_iter->second)
+                    else
                     {
-                        add_into_prechain_list(back, i_map_iter->second, p, bidirM);
-                        bidirM[p] = i_map_iter->second;
+                        
+                        bool back_i = i_map_iter->second->back() == i;
+                        bool back_k = k_map_iter->second->back() == k;
+                        if(j_map_iter == bidirM.end())
+                        {
+                            if(allowBidirChain(i))
+                                add_into_prechain_list(back_i, i_map_iter->second, j, bidirM);
+                            else if(allowBidirChain(k))
+                                add_into_prechain_list(back_k, k_map_iter->second, j, bidirM);
+                            j_map_iter = bidirM.find(j);
+                        }
+                        if(j_map_iter == bidirM.end())
+                        {
+                            i_map_iter->second->erase(back_i ? --i_map_iter->second->end() : i_map_iter->second->begin());
+                            k_map_iter->second->erase(back_k ? --k_map_iter->second->end() : k_map_iter->second->begin());
+                        }
+                        else
+                        {
+                            if(!allowBidirChain(i))
+                            {
+                                if(!isBidirChinOk(back_i, i_map_iter->second->begin(), i_map_iter->second->end()))
+                                {
+                                    i_map_iter->second->erase(back_i ? --i_map_iter->second->end() : i_map_iter->second->begin());
+                                    add_glue_into_prechain_list(back_k, k_map_iter->second, i, glueM, glueL, bidirM);
+                                    if(!isBidirChinOk(back_k, k_map_iter->second->begin(), k_map_iter->second->end()))
+                                    {
+                                        k_map_iter->second->erase(back_k ? --k_map_iter->second->end() : k_map_iter->second->begin());
+                                        bidirM.erase(i);
+                                    }
+                                }
+                            }
+                            else if(!allowBidirChain(k))
+                            {
+                                if(!isBidirChinOk(back_k, k_map_iter->second->begin(), k_map_iter->second->end()))
+                                {
+                                    k_map_iter->second->erase(back_k ? --k_map_iter->second->end() : k_map_iter->second->begin());
+                                    add_glue_into_prechain_list(back_i, i_map_iter->second, k, glueM, glueL, bidirM);
+                                    if(!isBidirChinOk(back_i, i_map_iter->second->begin(), i_map_iter->second->end()))
+                                    {
+                                        i_map_iter->second->erase(back_i ? --i_map_iter->second->end() : i_map_iter->second->begin());
+                                        bidirM.erase(k);
+                                    }
+                                }
+                            }
+                        }
                     }
-                    bidirL.erase(k_map_iter->second);
                 }
                 else if(i_map_iter!=bidirM.end())
                 {
-                    bool back = true;
-                    if(j_map_iter == bidirM.end())
+                    if(allowBidirChain(i))
                     {
-                        back = i_map_iter->second->back() == i;
-                        add_into_prechain_list(back, i_map_iter->second, j, bidirM);
+                        bool back = true;
+                        if(j_map_iter == bidirM.end())
+                        {
+                            back = i_map_iter->second->back() == i;
+                            add_into_prechain_list(back, i_map_iter->second, j, bidirM);
+                        }
+                        else back = i_map_iter->second->back() == j;
+                        add_glue_into_prechain_list(back, i_map_iter->second, k, glueM, glueL, bidirM);
                     }
-                    else back = i_map_iter->second->back() == j;
-                    add_glue_into_prechain_list(back, i_map_iter->second, k, glueM, glueL, bidirM);
+                    else
+                    {
+                        auto list = std::make_shared<std::list<PointID>>();
+                        //add_glue_into_prechain_list(true, list, i, glueM, glueL, bidirM);
+                        add_into_prechain_list(true, list, j, bidirM);
+                        add_glue_into_prechain_list(true, list, k, glueM, glueL, bidirM);
+                        bidirL.insert(list);
+                        BOOST_ASSERT(j_map_iter == bidirM.end());
+                        bool back = i_map_iter->second->back() == i;
+                        if(!isBidirChinOk(back, i_map_iter->second->begin(), i_map_iter->second->end()))
+                        {
+                            i_map_iter->second->erase(back ? --i_map_iter->second->end() : i_map_iter->second->begin());
+                            add_glue_into_prechain_list(false, list, i, glueM, glueL, bidirM);
+                            if(!isBidirChinOk(false, list->begin(), list->end()))
+                            {
+                                list->erase(list->begin());
+                                bidirM.erase(i);
+                            }
+                        }
+                    }
                 }
                 else if(k_map_iter!=bidirM.end())
                 {
-                    bool back = false;
-                    if(j_map_iter == bidirM.end())
+                    if(allowBidirChain(k))
                     {
-                        back = k_map_iter->second->back() == k;
-                        add_into_prechain_list(back, k_map_iter->second, j, bidirM);
+                        bool back = false;
+                        if(j_map_iter == bidirM.end())
+                        {
+                            back = k_map_iter->second->back() == k;
+                            add_into_prechain_list(back, k_map_iter->second, j, bidirM);
+                        }
+                        else back = k_map_iter->second->back() == j;
+                        add_glue_into_prechain_list(back, k_map_iter->second, i, glueM, glueL, bidirM);
                     }
-                    else back = k_map_iter->second->back() == j;
-                    add_glue_into_prechain_list(back, k_map_iter->second, i, glueM, glueL, bidirM);
+                    else
+                    {
+                        auto list = std::make_shared<std::list<PointID>>();
+                        add_glue_into_prechain_list(true, list, i, glueM, glueL, bidirM);
+                        add_into_prechain_list(true, list, j, bidirM);
+                        //add_glue_into_prechain_list(true, list, k, glueM, glueL, bidirM);
+                        bidirL.insert(list);
+                        BOOST_ASSERT(j_map_iter == bidirM.end());
+                        bool back = k_map_iter->second->back() == k;
+                        if(!isBidirChinOk(back, k_map_iter->second->begin(), k_map_iter->second->end()))
+                        {
+                            k_map_iter->second->erase(back ? --k_map_iter->second->end() : k_map_iter->second->begin());
+                            add_glue_into_prechain_list(true, list, k, glueM, glueL, bidirM);
+                            if(!isBidirChinOk(true, list->begin(), list->end()))
+                            {
+                                list->erase(list->begin());
+                                bidirM.erase(k);
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -206,6 +375,7 @@ class GraphLogistic
         }
         for(auto list : bidirL)
         {
+            if(list->size() < 2) continue;
             ChainID id_f = chains.size();
             auto ptr = new ForwardChain(id_f, *list, chains, cores, time_matrix, length_matrix);
             std::shared_ptr<ChainBase> chain_f(ptr);
@@ -256,7 +426,7 @@ class GraphLogistic
                     if(nearest_graph.forward(i).size() >= NEAREST_RADIUS)
                     {
                         if(!full_graph.forward(j).empty())
-                            threshold = std::min<int>(1.1 * chains[i]->timeTo(j), chains[i]->timeTo(j) + chains[j]->timeTo(full_graph.forward(j).front())/2);
+                            threshold = std::min<int>(1.1 * chains[i]->timeTo(j), chains[i]->timeTo(j) + chains[j]->timeTo(full_graph.forward(j).front())/3);
                         else threshold = chains[i]->timeTo(j);
                     }
                 }
@@ -756,14 +926,19 @@ public:
     
     void run()
     {
+        TIMER_START(chains);
         findChains();
+        TIMER_STOP(chains);
+        TIMER_START(tc);
         buildNearestGraph();
         findCorePoints();
         //disunitCores();
         findCoreForwardTails();
         findCoreBackwardTails();
         linkUnattachedCores();
+        TIMER_STOP(tc);
         
+        TIMER_START(rout);
         tours.emplace_back(chains, time_matrix);
         chains[0]->attend();  //TODO depot
         
@@ -788,6 +963,10 @@ public:
             }
         }
         startRoutingFromCore(max_core, max_chain);
+        TIMER_STOP(rout);
+        std::cout<<"building chains takes "<<TIMER_SEC(chains)<<" compression is "<<((n_points-n_chains)/n_points)<<"%"<<std::endl;
+        std::cout<<"building cores and tails takes "<<TIMER_SEC(tc)<<std::endl;
+        std::cout<<"routing takes "<<TIMER_SEC(rout)<<std::endl;
     }
     
     void render(std::vector<char> &output)
@@ -810,7 +989,7 @@ public:
         for(ChainID start=0; start<n_chains; ++start)
         {
             JSON::Array nearest_array_row;
-            for(const ChainID point : nearest_graph.forward(start))
+            for(const ChainID point : nearest_graph.forward_set(start))
                 nearest_array_row.values.push_back(point);
             nearest_array.values.push_back(nearest_array_row);
         }

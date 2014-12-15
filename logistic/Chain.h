@@ -174,7 +174,10 @@ public:
     
     int timeTo(ChainID to)
     {
-        return time_matrix(this->getOutPointID(), chains[to]->getInPointID());
+        int time = time_matrix(this->getOutPointID(), chains[to]->getInPointID());
+        if(time < time_matrix(this->getOutPointID(), chains[chains[to]->reverse()]->getInPointID()))
+            --time;
+        return time;
     }
     
     bool isInner() const

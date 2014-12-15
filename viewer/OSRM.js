@@ -2488,9 +2488,9 @@ function addRandomAsk()
 function printSide()
 {
 	var box=document.getElementById('clusters-box');
-	var text='<a href="#" onclick="return renumberByTour(0)">Нумеровать по проезду</a><br/>'+
-	'<a href="#" onclick="return renumberByClick()">Нумеровать по айди</a><br/>'+
-	'<a href="#" onclick="return addRandomAsk()">Добавить случайные</a><br/>'+
+	var text='<a href="#" onclick="return renumberByTour(0)">Нумеровать по проезду</a><br/><br/>'+
+	'<a href="#" onclick="return renumberByClick()">Нумеровать по айди</a><br/><br/>'+
+	'<a href="#" onclick="return addRandomAsk()">Добавить случайные</a><br/><br/>'+
 	'Цепочки<ul>';
 	for(var i = 0; i<glob.n_chains; ++i)
 	{
@@ -2505,6 +2505,14 @@ function printSide()
 		text+='<li>'+i+'='+glob.cores[i][0]
 		for(var j = 1; j<glob.cores[i].length; ++j)
 			text+='+'+glob.cores[i][j]
+		text+='</li>';
+	}
+	text+='</ul>Туры<ul>';
+	for(var i = 0; i<glob.tours.length; ++i)
+	{
+		text+='<li>'+i+'='+glob.tours[i][0]
+		for(var j = 1; j<glob.tours[i].length; ++j)
+			text+='+'+glob.tours[i][j]
 		text+='</li>';
 	}
 	text+='</ul>';
