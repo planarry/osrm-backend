@@ -25,7 +25,7 @@ public:
     {
         BOOST_ASSERT(from < n);
         BOOST_ASSERT(to < n);
-        if(!has(from, to)) //TODO depot
+        if(!has(from, to) && from!=to) //TODO depot
         {
             forward_data[from].insert(to);
             reverse_data[to].insert(from);
@@ -47,7 +47,7 @@ public:
     {
         BOOST_ASSERT(from < n);
         BOOST_ASSERT(to < n);
-        if(!has(from, to))
+        if(has(from, to))
         {
             forward_data[from].erase(to);
             reverse_data[to].erase(from);
@@ -56,6 +56,15 @@ public:
                                                      to));
         }
     }
+    
+    /*void clear(T from)
+    {
+        BOOST_ASSERT(from < n);
+        for(T to : forward_data[from])
+            reverse_data[to].erase(from);
+        forward_data[from].clear();
+        forward_order_data[from].clear();
+    }*/
         
     bool has(T from, T to) const
     { 
@@ -80,6 +89,14 @@ public:
     {
         BOOST_ASSERT(from < n);
         return reverse_data[from]; 
+    }
+    
+    void swap(Graph &r)
+    {
+        forward_data.swap(r.forward_data);
+        reverse_data.swap(r.reverse_data);
+        forward_order_data.swap(r.forward_order_data);
+        n ^= (r.n ^= n ^= r.n);
     }
 };
 

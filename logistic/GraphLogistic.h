@@ -37,13 +37,27 @@ class GraphLogistic
         map[point] = list;
     }
     
-    void add_glue_into_prechain_list(bool back, 
+    bool isNewBidirChinOk(bool back, std::shared_ptr<std::list<PointID>> &list, PointID next)
+    {
+        if(list->empty()) return true;
+        PointID last = back ? list->back() : list->front();
+        for(PointID to : full_point_graph.forward(next))
+            if(last!=to && time_matrix(last, next) + time_matrix(next, to) > time_matrix(last, to))
+                return false;
+        for(PointID from : full_point_graph.reverse(next))
+            if(last!=from && time_matrix(from, next) + time_matrix(next, last) > time_matrix(from, last))
+                return false;
+        return true;
+    }
+    
+    bool add_glue_into_prechain_list(bool back, 
                                      std::shared_ptr<std::list<PointID>> &list, 
                                      PointID point, 
-                                     const std::map<PointID, std::shared_ptr<std::list<PointID>>> &glueM, 
-                                     std::set<std::shared_ptr<std::list<PointID>>> &glueL,
+                                     const std::map<PointID, std::shared_ptr<std::set<PointID>>> &glueM, 
+                                     std::set<std::shared_ptr<std::set<PointID>>> &glueL,
                                      std::map<PointID, std::shared_ptr<std::list<PointID>>> &map)
     {
+        if(!isNewBidirChinOk(back, list, point)) return false;
         const auto glue_iter = glueM.find(point);
         if(glue_iter != glueM.end())
         {
@@ -52,73 +66,24 @@ class GraphLogistic
             glueL.erase(glue_iter->second);
         }
         else add_into_prechain_list(back, list, point, map);
-    }
-    
-    template<typename Iterator>
-    bool isBidirChinOk(bool back, Iterator begin, Iterator end)
-    {
-        PointID last, prelast;
-        if(back)
-        {
-            last = *(--end);
-            prelast = *(--end);
-        }
-        else 
-        {
-            last = *begin;
-            prelast = *(++begin);
-        }
-        for(PointID to : full_point_graph.forward(last))
-            if(prelast!=to && time_matrix(prelast, last) + time_matrix(last, to) > time_matrix(prelast, to))
-                return false;
-        for(PointID from : full_point_graph.reverse(last))
-            if(prelast!=from && time_matrix(from, last) + time_matrix(last, prelast) > time_matrix(from, prelast))
-                return false;
         return true;
-        
-        /*int f_sum = 0, r_sum = 0;
-        Iterator cur2 = begin;
-        Iterator cur1 = cur2++;
-        for(; cur2 != end; ++cur1, ++cur2)
-        {
-            f_sum+=time_matrix(*cur1, *cur2);
-            r_sum+=time_matrix(*cur2, *cur1);
-        }
-        if(back)
-            return f_sum <= time_matrix(*begin, *cur1);
-        else
-            return r_sum <= time_matrix(*cur1, *begin);
-        /*PointID first, last;
-        if(back)
-        {
-            first = *begin;
-            last = *cur1;
-        }
-        else
-        {
-            last = *begin;
-            first = *cur1;
-        }
-        for(PointID to : full_point_graph.forward(last))
-            if(back?f_sum:r_sum + time_matrix(last, to) > time_matrix(first, to))
-                return false;
-        for(PointID from : full_point_graph.reverse(first))
-            if(time_matrix(from, first) + back?r_sum:f_sum > time_matrix(from, last))
-                return false;
-        return true;*/
     }
     
     bool allowBidirChain(PointID midlePoint)
     {
-        return full_point_graph.forward_set(midlePoint).size() == 2 && full_point_graph.reverse(midlePoint).size() == 2
+        return full_point_graph.forward_set(midlePoint).size() == 2 
+                && full_point_graph.forward(midlePoint).size() == 2
+                && full_point_graph.reverse(midlePoint).size() == 2
                 && *full_point_graph.forward_set(midlePoint).begin() == *full_point_graph.reverse(midlePoint).begin()
                 && *(--full_point_graph.forward_set(midlePoint).end()) == *(--full_point_graph.reverse(midlePoint).end());
     }
     
     void findChains()
     {
-        std::set<std::shared_ptr<std::list<PointID>>> glueL, onedirL, bidirL;
-        std::map<PointID, std::shared_ptr<std::list<PointID>>> glueM, onedirM, bidirM;
+        std::set<std::shared_ptr<std::list<PointID>>> onedirL, bidirL;
+        std::map<PointID, std::shared_ptr<std::list<PointID>>> onedirM, bidirM;
+        std::set<std::shared_ptr<std::set<PointID>>> glueL;
+        std::map<PointID, std::shared_ptr<std::set<PointID>>> glueM;
         for(PointID i=1; i<n_points; i++) //TODO depot
             for(PointID j : full_point_graph.forward(i))
                 if(time_matrix(i, j) == 0)
@@ -128,22 +93,28 @@ class GraphLogistic
                     if(i_map_iter!=glueM.end() && j_map_iter!=glueM.end())
                     {
                         if(i_map_iter->second == j_map_iter->second) continue;
-                        i_map_iter->second->insert(i_map_iter->second->end(), 
-                                                   j_map_iter->second->begin(), 
-                                                   j_map_iter->second->end());
-                        for(PointID k : *j_map_iter->second)
-                            glueM[k] = i_map_iter->second;
+                        for(PointID p : *j_map_iter->second)
+                        {
+                            i_map_iter->second->insert(p);
+                            glueM[p] = i_map_iter->second;
+                        }
                         glueL.erase(j_map_iter->second);
                     }
                     else if(i_map_iter!=glueM.end())
-                        i_map_iter->second->push_back(j);
+                    {
+                        i_map_iter->second->insert(j);
+                        glueM[j]=i_map_iter->second;
+                    }
                     else if(j_map_iter!=glueM.end())
-                        j_map_iter->second->push_front(i);
+                    {
+                        j_map_iter->second->insert(i);
+                        glueM[i]=j_map_iter->second;
+                    }
                     else
                     {
-                        auto list = std::make_shared<std::list<PointID>>();
-                        list->push_back(i);
-                        list->push_back(j);
+                        auto list = std::make_shared<std::set<PointID>>();
+                        list->insert(i);
+                        list->insert(j);
                         glueL.insert(list);
                         glueM[i]=list;
                         glueM[j]=list;
@@ -152,27 +123,30 @@ class GraphLogistic
         for(auto gl : glueL)
         {
             for(PointID i : *gl)
-                full_point_graph.erase(gl->back(), i);
+                full_point_graph.erase(*(--gl->end()), i);
             std::for_each(gl->begin(), --gl->end(), [&](PointID i){
-                for(PointID j : full_point_graph.forward(gl->back()))
+                for(PointID j : full_point_graph.forward(*(--gl->end())))
                     full_point_graph.erase(i, j);
             });
         }
         for(PointID i=1; i<n_points; i++) //TODO depot
-            if(full_point_graph.forward(i).size() == 1
-                && full_point_graph.reverse(full_point_graph.forward(i).front()).size() == 1)
+            if(full_point_graph.forward_set(i).size() == 1 
+                && full_point_graph.forward(i).size() == 1
+                && full_point_graph.reverse(full_point_graph.forward(i).front()).size() == 1
+                && *full_point_graph.reverse(full_point_graph.forward(i).front()).begin() == i)
             {
                 PointID j = full_point_graph.forward(i).front();
+                if(glueM.find(i)!=glueM.end() 
+                    && glueM.find(j)!=glueM.end()
+                    && glueM.find(i)->second==glueM.find(j)->second)
+                    continue;
                 auto i_map_iter = onedirM.find(i);
                 auto j_map_iter = onedirM.find(j);
                 if(i_map_iter!=onedirM.end() && j_map_iter!=onedirM.end())
                 {
                     if(i_map_iter->second == j_map_iter->second) continue;
                     for(PointID p : *j_map_iter->second)
-                    {
                         add_into_prechain_list(true, i_map_iter->second, p, onedirM);
-                        onedirM[p] = i_map_iter->second;
-                    }
                     onedirL.erase(j_map_iter->second);
                 }
                 else if(i_map_iter!=onedirM.end())
@@ -228,7 +202,6 @@ class GraphLogistic
                     }
                     else
                     {
-                        
                         bool back_i = i_map_iter->second->back() == i;
                         bool back_k = k_map_iter->second->back() == k;
                         if(j_map_iter == bidirM.end())
@@ -237,41 +210,6 @@ class GraphLogistic
                                 add_into_prechain_list(back_i, i_map_iter->second, j, bidirM);
                             else if(allowBidirChain(k))
                                 add_into_prechain_list(back_k, k_map_iter->second, j, bidirM);
-                            j_map_iter = bidirM.find(j);
-                        }
-                        if(j_map_iter == bidirM.end())
-                        {
-                            i_map_iter->second->erase(back_i ? --i_map_iter->second->end() : i_map_iter->second->begin());
-                            k_map_iter->second->erase(back_k ? --k_map_iter->second->end() : k_map_iter->second->begin());
-                        }
-                        else
-                        {
-                            if(!allowBidirChain(i))
-                            {
-                                if(!isBidirChinOk(back_i, i_map_iter->second->begin(), i_map_iter->second->end()))
-                                {
-                                    i_map_iter->second->erase(back_i ? --i_map_iter->second->end() : i_map_iter->second->begin());
-                                    add_glue_into_prechain_list(back_k, k_map_iter->second, i, glueM, glueL, bidirM);
-                                    if(!isBidirChinOk(back_k, k_map_iter->second->begin(), k_map_iter->second->end()))
-                                    {
-                                        k_map_iter->second->erase(back_k ? --k_map_iter->second->end() : k_map_iter->second->begin());
-                                        bidirM.erase(i);
-                                    }
-                                }
-                            }
-                            else if(!allowBidirChain(k))
-                            {
-                                if(!isBidirChinOk(back_k, k_map_iter->second->begin(), k_map_iter->second->end()))
-                                {
-                                    k_map_iter->second->erase(back_k ? --k_map_iter->second->end() : k_map_iter->second->begin());
-                                    add_glue_into_prechain_list(back_i, i_map_iter->second, k, glueM, glueL, bidirM);
-                                    if(!isBidirChinOk(back_i, i_map_iter->second->begin(), i_map_iter->second->end()))
-                                    {
-                                        i_map_iter->second->erase(back_i ? --i_map_iter->second->end() : i_map_iter->second->begin());
-                                        bidirM.erase(k);
-                                    }
-                                }
-                            }
                         }
                     }
                 }
@@ -291,22 +229,9 @@ class GraphLogistic
                     else
                     {
                         auto list = std::make_shared<std::list<PointID>>();
-                        //add_glue_into_prechain_list(true, list, i, glueM, glueL, bidirM);
                         add_into_prechain_list(true, list, j, bidirM);
                         add_glue_into_prechain_list(true, list, k, glueM, glueL, bidirM);
-                        bidirL.insert(list);
-                        BOOST_ASSERT(j_map_iter == bidirM.end());
-                        bool back = i_map_iter->second->back() == i;
-                        if(!isBidirChinOk(back, i_map_iter->second->begin(), i_map_iter->second->end()))
-                        {
-                            i_map_iter->second->erase(back ? --i_map_iter->second->end() : i_map_iter->second->begin());
-                            add_glue_into_prechain_list(false, list, i, glueM, glueL, bidirM);
-                            if(!isBidirChinOk(false, list->begin(), list->end()))
-                            {
-                                list->erase(list->begin());
-                                bidirM.erase(i);
-                            }
-                        }
+                        if (list->size() > 1) bidirL.insert(list);
                     }
                 }
                 else if(k_map_iter!=bidirM.end())
@@ -325,35 +250,26 @@ class GraphLogistic
                     else
                     {
                         auto list = std::make_shared<std::list<PointID>>();
-                        add_glue_into_prechain_list(true, list, i, glueM, glueL, bidirM);
                         add_into_prechain_list(true, list, j, bidirM);
-                        //add_glue_into_prechain_list(true, list, k, glueM, glueL, bidirM);
-                        bidirL.insert(list);
-                        BOOST_ASSERT(j_map_iter == bidirM.end());
-                        bool back = k_map_iter->second->back() == k;
-                        if(!isBidirChinOk(back, k_map_iter->second->begin(), k_map_iter->second->end()))
-                        {
-                            k_map_iter->second->erase(back ? --k_map_iter->second->end() : k_map_iter->second->begin());
-                            add_glue_into_prechain_list(true, list, k, glueM, glueL, bidirM);
-                            if(!isBidirChinOk(true, list->begin(), list->end()))
-                            {
-                                list->erase(list->begin());
-                                bidirM.erase(k);
-                            }
-                        }
+                        add_glue_into_prechain_list(false, list, i, glueM, glueL, bidirM);
+                        if (list->size() > 1) bidirL.insert(list);
                     }
                 }
                 else
                 {
                     auto list = std::make_shared<std::list<PointID>>();
-                    add_glue_into_prechain_list(true, list, i, glueM, glueL, bidirM);
                     add_into_prechain_list(true, list, j, bidirM);
+                    add_glue_into_prechain_list(false, list, i, glueM, glueL, bidirM);
                     add_glue_into_prechain_list(true, list, k, glueM, glueL, bidirM);
-                    bidirL.insert(list);
+                    if (list->size() > 1) bidirL.insert(list);
                 }
             }
         for(auto gl : glueL)
-            onedirL.insert(gl);
+        {
+            auto list = std::make_shared<std::list<PointID>>();
+            std::copy(gl->begin(), gl->end(), std::back_inserter(*list));
+            onedirL.insert(list);
+        }
         std::set<PointID> alone_points;
         std::map<PointID, ChainID> points_chain_map;
         chains.emplace_back(new Point(0, 0, chains, cores, time_matrix, length_matrix)); //TODO depot
@@ -433,6 +349,25 @@ class GraphLogistic
         }
     }
     
+    void buildNearestGraph(std::set<ChainID> points)
+    {
+        nearest_graph.assign(n_chains);
+        for(ChainID i : points) {
+            int threshold = UNREACHED_WEIGHT;
+            for(const ChainID j : full_graph.forward(i))
+                if(chains[i]->timeTo(j) <= threshold && points.find(j) != points.end()) 
+                {
+                    nearest_graph.insert(i, j);
+                    if(nearest_graph.forward(i).size() >= NEAREST_RADIUS)
+                    {
+                        if(!full_graph.forward(j).empty())
+                            threshold = std::min<int>(1.1 * chains[i]->timeTo(j), chains[i]->timeTo(j) + chains[j]->timeTo(full_graph.forward(j).front())/3);
+                        else threshold = chains[i]->timeTo(j);
+                    }
+                }
+        }
+    }
+    
     void findCorePoints() 
     {
         tarjan_time = 0;
@@ -489,12 +424,78 @@ class GraphLogistic
             }
             if(core.size() >= MIN_CORE_RADIUS)
             {
-                cores.push_back(core);
-                const CoreID cur_core = cores.size() - 1;
-                for(ChainID v : core.getInners())
-                    chains[v]->setInner(cur_core);
+                if(core.size() <= MAX_CORE_RADIUS)
+                {
+                    cores.push_back(core);
+                    const CoreID cur_core = cores.size() - 1;
+                    for(ChainID i : core.getInners())
+                        chains[i]->setInner(cur_core);
+                }
+                else disunitCore(core.getInners());
             }
         }
+    }
+    
+    void disunitCore(std::set<ChainID> core)
+    {        
+        Graph<ChainID> temp_nearest_graph;
+        nearest_graph.swap(temp_nearest_graph);
+        int temp_tarjan_time = tarjan_time;
+        std::list<ChainID> temp_tarjan_stack = tarjan_stack;
+        std::vector<int> temp_tarjan_lowlink = tarjan_lowlink;
+        std::vector<bool> temp_dfs_visited = dfs_visited;
+        
+        tarjan_time = 0;
+        tarjan_stack.clear();
+        dfs_visited.assign(n_chains, true);
+        tarjan_lowlink.assign(n_chains, 0);
+        
+        unsigned max_conected_size = 0;
+        ChainID max_conected_chain = SPECIAL_ID;
+        for(ChainID i : core)
+        {
+            dfs_visited[i] = false;
+            std::set<ChainID> conected;
+            for(ChainID j : temp_nearest_graph.forward(i))
+                if(core.find(j) != core.end())
+                    conected.insert(j);
+            for(ChainID j : temp_nearest_graph.reverse(i))
+                if(core.find(j) != core.end())
+                    conected.insert(j);
+            if(max_conected_size < conected.size())
+            {
+                max_conected_size = conected.size();
+                max_conected_chain = i;
+            }
+        }
+        core.erase(max_conected_chain);
+        buildNearestGraph(core);
+        
+        unsigned prev_core_count = cores.size();
+        for(ChainID i : core)
+            if (!dfs_visited[i])
+                tarjanDFS(i);
+            
+        tarjan_time = 0;
+        tarjan_stack.clear();
+        dfs_visited.assign(n_chains, true);
+        tarjan_lowlink.assign(n_chains, 0);
+        for(CoreID i=prev_core_count; i<cores.size(); ++i)
+            for(ChainID j : cores[i].getInners())
+                core.erase(j);
+        buildNearestGraph(core);
+        for(ChainID i : core)
+            dfs_visited[i] = false;
+        for(ChainID i : core)
+            if (!dfs_visited[i])
+                tarjanDFS(i);            
+        
+        
+        nearest_graph.swap(temp_nearest_graph);
+        tarjan_time = temp_tarjan_time;
+        tarjan_stack = temp_tarjan_stack;
+        tarjan_lowlink = temp_tarjan_lowlink;
+        dfs_visited = temp_dfs_visited;
     }
     
     void findCoreForwardTails()
@@ -526,8 +527,8 @@ class GraphLogistic
     {
         int min_w = UNREACHED_WEIGHT;
         ChainID min = SPECIAL_ID;
-        for(const ChainID v : full_graph.forward(u))
-            if(!chains[v]->isUnattached() && min_w > chains[u]->timeTo(v))
+        for(ChainID v=1; v<n_chains; ++v) //TODO depot
+            if(!chains[v]->isUnattached() && min_w > chains[u]->timeTo(v) && v!=0) //TODO depot
             {
                 min_w = chains[u]->timeTo(v);
                 min = v;
@@ -573,7 +574,7 @@ class GraphLogistic
                     ChainID min_from = SPECIAL_ID, min_to = SPECIAL_ID;
                     int min_weight = UNREACHED_WEIGHT;
                     for(ChainID from : cores[c].getTails())
-                        for(ChainID to : full_graph.forward(from))
+                        for(ChainID to=1; to<n_chains; ++to) //TODO depot
                             if(!chains[to]->isInner(c) && min_weight > chains[from]->timeTo(to))
                             {
                                 min_weight = chains[from]->timeTo(to);
@@ -795,18 +796,21 @@ class GraphLogistic
     {
         std::cout << "try postoptimize somewhere between " << lbound << " and " << rbound << std::endl;
         Tour bestTour = tours.back();
-        bool forward = true;
+        bool forward = true, success = false;
         
         auto doNothing = [](Tour &tour){ };
-        while(doAllOpts(bestTour, doNothing, 0, lbound, rbound, bestTour, forward)) 
+        while(doAllOpts(tours.back(), doNothing, 0, lbound, rbound, bestTour, forward)) 
+        {
+            tours.back() = std::move(bestTour);
+            success = true;
             if(!forward)
             {
                 begin_offset^=(end_offset^=begin_offset^=end_offset);
                 std::cout << "swaping offset " << begin_offset << " " << end_offset << std::endl;
             }
-        if(tours.back() >= bestTour) return false;
+        }
+        if(!success) return false;
         
-        tours.back() = std::move(bestTour);
         std::cout << "best result is " << std::endl << tours.back() << std::endl;
         return true;
     }
@@ -843,20 +847,21 @@ class GraphLogistic
                                     chains[point]->getCores().end(), 
                                     [&](CoreID c){ return cores[c].isAttend(); }))
                     {
-                        unsigned max_lbound=0;
-                        unsigned max_rbound=0;
+                        unsigned min_lbound=SPECIAL_ID;
+                        unsigned min_rbound=SPECIAL_ID;
                         for(ChainID gate : chains[point]->getGates())
                         {
                             unsigned lbound=0, rbound=0;
                             tours.back().findBounds(gate, lbound, rbound);
                             
-                            if(max_lbound < lbound) max_lbound = lbound;
-                            if(max_rbound < rbound) max_rbound = rbound;
+                            if(min_lbound > lbound) min_lbound = lbound;
+                            if(min_rbound > rbound) min_rbound = rbound;
                         }
-                        tryInsert(point, max_lbound, max_rbound);
+                        tryInsert(point, min_lbound, min_rbound);
                     }
                 std::cout << "tails solution is" << std::endl << tours.back() << std::endl;
             }
+            postoptimize(begin_offset, end_offset);
             
             std::cout << "start looking for next core" << std::endl;
             CoreID next_core, from_core;
@@ -868,7 +873,7 @@ class GraphLogistic
                         for(ChainID out_gate : chains[cross_tail]->getGates())
                             if(chains[out_gate]->isInner(core))
                                 for(ChainID in_gate : chains[cross_tail]->getGates())
-                                    if(!cores[chains[in_gate]->getCoreInner()].isAttend())
+                                    if(!chains[in_gate]->isAttend() && !cores[chains[in_gate]->getCoreInner()].isAttend())
                                         if(min_dist > chains[out_gate]->timeTo(in_gate))
                                         {
                                             min_dist = chains[out_gate]->timeTo(in_gate);
@@ -884,8 +889,8 @@ class GraphLogistic
             std::cout << "start looking for insert bounds" << std::endl;
             
 
-            unsigned max_lbound=0;
-            unsigned max_rbound=0;
+            unsigned min_lbound=SPECIAL_ID;
+            unsigned min_rbound=SPECIAL_ID;
             for(ChainID cross_tail : cores[from_core].getTails())
                 if(chains[cross_tail]->hasCore(next_core))
                     for(ChainID out_gate : chains[cross_tail]->getGates())
@@ -893,11 +898,11 @@ class GraphLogistic
                         {
                             unsigned lbound=0, rbound=0;
                             tours.back().findBounds(out_gate, lbound, rbound);
-                            if(max_lbound < lbound) max_lbound = lbound;
-                            if(max_rbound < rbound) max_rbound = rbound;
+                            if(min_lbound > lbound) min_lbound = lbound;
+                            if(min_rbound > rbound) min_rbound = rbound;
                         }
-            begin_offset = max_lbound;
-            end_offset = max_rbound;
+            begin_offset = min_lbound;
+            end_offset = min_rbound;
             cur_core = next_core;
             from_point = min_out_gate;
             start_point = min_in_gate;
@@ -932,7 +937,6 @@ public:
         TIMER_START(tc);
         buildNearestGraph();
         findCorePoints();
-        //disunitCores();
         findCoreForwardTails();
         findCoreBackwardTails();
         linkUnattachedCores();
@@ -963,13 +967,14 @@ public:
             }
         }
         startRoutingFromCore(max_core, max_chain);
+        postoptimize(0, 0);
         TIMER_STOP(rout);
         std::cout<<"building chains takes "<<TIMER_SEC(chains)<<" compression is "<<((n_points-n_chains)/n_points)<<"%"<<std::endl;
         std::cout<<"building cores and tails takes "<<TIMER_SEC(tc)<<std::endl;
         std::cout<<"routing takes "<<TIMER_SEC(rout)<<std::endl;
     }
     
-    void render(std::vector<char> &output)
+    void render(std::vector<char> &output, float time)
     {
         JSON::Object json_root;
         JSON::Array tours_array;
@@ -1011,6 +1016,8 @@ public:
         json_root.values["n"] = n_points;
         json_root.values["n_chains"] = n_chains;
         json_root.values["n_cores"] = n_cores;
+        json_root.values["cost"] = tours.back().cost();
+        json_root.values["time"] = time;
         JSON::render(output, json_root);
         
     }

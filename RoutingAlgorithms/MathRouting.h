@@ -56,81 +56,6 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
             return a_dist < b_dist;
         }
     };
-    /*struct Chain
-    {
-        PointID start;
-        std::set<PointID> required_stoppers;
-        std::vector<PointID> points_chain;
-        std::set<PointID> points_set;
-        bool longest;
-        short level;
-        EdgeWeight forward_distance;
-        EdgeWeight reverse_distance;
-        explicit Chain(PointID start,
-                       std::set<PointID> required_stoppers,
-                       bool longest, 
-                       short level = 1) 
-            : start(start), 
-              required_stoppers(required_stoppers), 
-              longest(longest), 
-              level(level), 
-              forward_distance(0), 
-              reverse_distance(0)
-        {
-        }
-        const PointID GetLast() const
-        {
-            if(points_chain.empty())
-                return start;
-            else return points_chain.back();
-        }
-        void Grow(PointID point, const WeightMatrix &weight_matrix, std::vector<int> &points_use_count)
-        {
-            forward_distance += weight_matrix.at(GetLast(), point);
-            reverse_distance += weight_matrix.at(point, GetLast());
-            points_chain.push_back(point);
-            points_set.insert(point);
-            ++points_use_count[1 * weight_matrix.n + point];
-            if(longest)
-                ++points_use_count[2 * weight_matrix.n + point];
-        }
-        bool IsCompliant(std::set<PointID> already_attended) const
-        {
-            auto stopper_iter = required_stoppers.begin();
-            auto attended_iter = already_attended.begin();
-            
-            for(; attended_iter != already_attended.end(); ++attended_iter)
-            {
-                if(stopper_iter != required_stoppers.end())
-                {
-                    if (*stopper_iter<*attended_iter) break;
-                    else if(*attended_iter==*stopper_iter) ++stopper_iter;
-                }
-                if(points_set.find(*attended_iter) != points_set.end())
-                    break;
-            }
-            return attended_iter == already_attended.end() && stopper_iter == required_stoppers.end();
-        }
-        
-        static bool CompareByStart(const Chain &left, const Chain &right)
-        {
-            return !left.longest || 
-                std::lexicographical_compare( left.points_chain.begin(),  left.points_chain.end(), 
-                                             right.points_chain.begin(), right.points_chain.end());
-        }
-        
-        static bool CompareByEnd(const Chain *left, const Chain *right)
-        {
-            if(!left->longest) return true;
-            bool res = std::lexicographical_compare( left->points_chain.rbegin(),  left->points_chain.rend(), 
-                                                    right->points_chain.rbegin(), right->points_chain.rend());
-            
-        }
-        bool HasPoint(PointID point) const
-        {
-            return start==point || points_set.find(point) != points_set.end();
-        }
-    };*/
     typedef BasicRoutingInterface<DataFacadeT> super;
     typedef SearchEngineData::QueryHeap QueryHeap;
     typedef std::unordered_map<NodeID, EdgeWeight> LengthMap;
@@ -268,7 +193,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
         
         
         std::vector<std::list<PointID>> nearest_forward_graph(n), nearest_reverse_graph(n);
-        TIMER_START(solution);
+        //TIMER_START(solution);
         TIMER_START(graph);
         BuildFullGraph(nearest_forward_graph, 
                        nearest_reverse_graph, 
@@ -280,61 +205,46 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                        all_phantomes, 
                        n);
         TIMER_STOP(graph);
-        TIMER_START(math);
+        SimpleLogger().Write() << "Ful graph " << TIMER_SEC(graph) << "s";
+        
+        JSON::Object json_object;
+        JSON::Array json_matrix_time;
+        JSON::Array json_matrix_length;
+        JSON::Array json_matrix_graph;
+        for (unsigned row = 0; row < n; ++row)
+        {
+            JSON::Array json_row_time;
+            JSON::Array json_row_length;
+            JSON::Array json_row_graph;
+            for (unsigned col = 0; col < n; ++col)
+            {
+                json_row_time.values.push_back(time_matrix(row,col));
+                json_row_length.values.push_back(length_matrix(row,col));
+            }
+            json_row_graph.values.insert(json_row_graph.values.end(), 
+                                         nearest_forward_graph[row].begin(), 
+                                         nearest_forward_graph[row].end());
+            json_matrix_time.values.push_back(json_row_time);
+            json_matrix_length.values.push_back(json_row_length);
+            json_matrix_graph.values.push_back(json_row_graph);
+        }
+        json_object.values["time_table"] = json_matrix_time;
+        json_object.values["length_table"] = json_matrix_length;
+        json_object.values["graph_table"] = json_matrix_graph;
+        JSON::render(output, json_object);
+        /*TIMER_START(math);
         GraphLogistic math(n, 
                            time_matrix, 
                            length_matrix, 
                            nearest_forward_graph, 
                            coordinates);
         math.run();
-        math.render(output);
         TIMER_STOP(math);
         TIMER_STOP(solution);
-        SimpleLogger().Write() << "Ful graph " << TIMER_SEC(graph) << "s";
+        math.render(output, TIMER_SEC(solution));
         SimpleLogger().Write() << "Math takes " << TIMER_SEC(math) << "s";
-        SimpleLogger().Write() << "Common solution takes " << TIMER_SEC(solution) << "s";
-        //OutputChainsByStart(output, nearest_forward_graph);
+        SimpleLogger().Write() << "Common solution takes " << TIMER_SEC(solution) << "s";*/
         
-        
-        /*// 0 - all
-        // 1 - short
-        // 3 - longest
-        std::vector<int> points_use_count(3 * n);
-        
-        std::vector<std::set<PointID>> nearest_graph(n);
-        
-        std::vector<std::vector<Chain>> chains_pull(n);
-        
-        //i=end>>>|       one-before-end|  |start|
-        std::vector<std::multimap<PointID, PointID>> tails_list(n);
-        
-        // Building Nearest Graph
-        BuildNearestGraph(//nearest_graph, 
-                          time_matrix, 
-                          cross_nodes_table, 
-                          forward_hierarchy_tree, 
-                          backward_hierarchy_tree,
-                          phantom_nodes_array);
-        
-        //Try Look For Chain From Every Point
-        const std::set<PointID> empty_attendance_set;
-        const std::list<ChainRef> empty_track_list;
-        for(PointID i=0; i<n; ++i)
-        {
-            RecursiveLookForChain(i,
-                                  empty_attendance_set, 
-                                  empty_track_list,
-                                  chains_pull, 
-                                  tails_list, 
-                                  points_use_count, 
-                                  nearest_graph, 
-                                  time_matrix,
-                                  n);
-        }
-        //FilterChains(chains_pull);
-        TIMER_STOP(process);
-        OutputChainsByStart(output, chains_pull, points_use_count, nearest_graph, TIMER_SEC(process));
-        return result_table;*/
     }
     
     void BuildFullGraph(std::vector<std::list<PointID>> &nearest_forward_graph,

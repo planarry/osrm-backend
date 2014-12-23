@@ -31,11 +31,11 @@ public:
     const_iterator begin(unsigned lbound = 0) const
     { return data.cbegin() + lbound; }
     const_iterator end(unsigned rbound = 0) const
-    { return data.cend() + rbound; }
+    { return data.cend() - rbound; }
     iterator begin(unsigned lbound = 0)
     { return data.begin() + lbound; }
     iterator end(unsigned rbound = 0)
-    { return data.end() + rbound; }
+    { return data.end() - rbound; }
     unsigned size()
     { return data.size(); }
     
@@ -94,7 +94,7 @@ public:
             this->add(chains[chain]->reverse());
         });
     }
-    void findBounds(ChainID gate, unsigned int lbound, unsigned int rbound)
+    void findBounds(ChainID gate, unsigned int &lbound, unsigned int &rbound)
     {
         auto is_core_point=[&](ChainID i) { return chains[i]->isInner(); };
         auto gate_iter = begin(indexes[gate]);

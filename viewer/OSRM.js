@@ -2491,6 +2491,7 @@ function printSide()
 	var text='<a href="#" onclick="return renumberByTour(0)">Нумеровать по проезду</a><br/><br/>'+
 	'<a href="#" onclick="return renumberByClick()">Нумеровать по айди</a><br/><br/>'+
 	'<a href="#" onclick="return addRandomAsk()">Добавить случайные</a><br/><br/>'+
+	'Цена: '+glob.cost+'; Время: '+glob.time+'<br/><br/>'+
 	'Цепочки<ul>';
 	for(var i = 0; i<glob.n_chains; ++i)
 	{

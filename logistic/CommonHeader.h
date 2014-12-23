@@ -27,6 +27,7 @@ const int UNREACHED_WEIGHT = std::numeric_limits<int>::max();
 const unsigned SPECIAL_ID = std::numeric_limits<unsigned>::max();
 const unsigned NEAREST_RADIUS = 2;
 const unsigned MIN_CORE_RADIUS = 3;
+const unsigned MAX_CORE_RADIUS = 10;
 const unsigned MOVING_MEAN_RADIUS = 0;
 const float MOVING_MEAN_FACTOR = 1.9;
 const unsigned MAX_TOUR_LENGTH = 20;
