@@ -218,8 +218,8 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
             JSON::Array json_row_graph;
             for (unsigned col = 0; col < n; ++col)
             {
-                json_row_time.values.push_back(time_matrix(row,col));
-                json_row_length.values.push_back(length_matrix(row,col));
+                json_row_time.values.push_back(int(time_matrix(row,col)/10));
+                json_row_length.values.push_back(int(length_matrix(row,col)/10));
             }
             json_row_graph.values.insert(json_row_graph.values.end(), 
                                          nearest_forward_graph[row].begin(), 
@@ -300,7 +300,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                 all_blocked.insert(blocked_cross_nodes.begin(), blocked_cross_nodes.end());
                 bool is_first_node = true;
                 
-                while(cur_node != forward_hierarchy_tree[i].at(cur_node))
+                while(forward_hierarchy_tree[i].count(cur_node) && cur_node != forward_hierarchy_tree[i].at(cur_node))
                 {
                     if(SetHasIntesection(all_blocked, UnpackEdge(forward_hierarchy_tree[i].at(cur_node), cur_node, unpack_cache)))
                     {
@@ -324,7 +324,7 @@ template <class DataFacadeT> class MathRouting : public BasicRoutingInterface<Da
                 }
                 
                 cur_node = cross_nodes_table(i, idxs[j]);
-                while(cur_node != backward_hierarchy_tree[idxs[j]].at(cur_node))
+                while(backward_hierarchy_tree[idxs[j]].count(cur_node) && cur_node != backward_hierarchy_tree[idxs[j]].at(cur_node))
                 {
                     if(SetHasIntesection(all_blocked, UnpackEdge(cur_node, backward_hierarchy_tree[idxs[j]].at(cur_node), unpack_cache)))
                     {
