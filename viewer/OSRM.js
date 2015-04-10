@@ -51,9 +51,9 @@ L.DomUtil.changeClass = function(a, b, c) {
 var OSRM = {};
 OSRM.VERSION = "0.1.11", OSRM.DATE = "131122", OSRM.CONSTANTS = {}, OSRM.DEFAULTS = {}, OSRM.GLOBALS = {}, OSRM.Control = {}, OSRM.G = OSRM.GLOBALS, OSRM.C = OSRM.CONSTANTS, OSRM.DEFAULTS = {
         ROUTING_ENGINES: [{
-            url: "http://192.168.9.29:5000/viaroute",
-            timestamp: "http://192.168.9.29:5000/timestamp",
-            table: "http://192.168.9.29:5000/table",
+            url: "http://127.0.0.1:5000/viaroute",
+            timestamp: "http://127.0.0.1:5000/timestamp",
+            table: "http://127.0.0.1:5000/table",
             metric: 0,
             label: "ENGINE_0"
         }],
