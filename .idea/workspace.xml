@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CMakeRunConfigurationManager" shouldGenerate="true" assignedExecutableTargets="true" buildAllGenerated="true">
+    <generated>
+      <config projectName="OSRM" targetName="osrm-prepare" />
+      <config projectName="OSRM" targetName="osrm-exporter" />
+      <config projectName="OSRM" targetName="FINGERPRINT" />
+      <config projectName="OSRM" targetName="osrm-extract" />
+      <config projectName="OSRM" targetName="tests" />
+      <config projectName="OSRM" targetName="COORDLIB" />
+      <config projectName="OSRM" targetName="datastructure-tests" />
+      <config projectName="OSRM" targetName="benchmarks" />
+      <config projectName="OSRM" targetName="FingerPrintConfigure" />
+      <config projectName="OSRM" targetName="IMPORT" />
+      <config projectName="OSRM" targetName="osrm-routed" />
+      <config projectName="OSRM" targetName="OSRM" />
+      <config projectName="OSRM" targetName="osrm-datastore" />
+      <config projectName="OSRM" targetName="rtree-bench" />
+      <config projectName="OSRM" targetName="GITDESCRIPTION" />
+    </generated>
+  </component>
+  <component name="CMakeSettings" AUTO_RELOAD="false" GENERATION_PASS_SYSTEM_ENVIRONMENT="true">
+    <ADDITIONAL_GENERATION_ENVIRONMENT>
+      <envs />
+    </ADDITIONAL_GENERATION_ENVIRONMENT>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="73e62503-d54b-463b-9a82-cca64ab93633" name="Default" comment="">
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/RoutingAlgorithms/MathRouting.h" afterPath="$PROJECT_DIR$/RoutingAlgorithms/MathRouting.h" />
+    </list>
+    <ignored path="osrm-backend.iws" />
+    <ignored path=".idea/workspace.xml" />
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="TRACKING_ENABLED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ChangesViewManager" flattened_view="true" show_ignored="false" />
+  <component name="CreatePatchCommitExecutor">
+    <option name="PATCH_PATH" value="" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="default_target" />
+  <component name="FavoritesManager">
+    <favorites_list name="osrm-backend" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$PROJECT_DIR$/CMakeLists.txt" />
+      </list>
+    </option>
+  </component>
+  <component name="NamedScopeManager">
+    <order />
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="x" value="47" />
+    <option name="y" value="-3" />
+    <option name="width" value="1873" />
+    <option name="height" value="1083" />
+  </component>
+  <component name="ProjectLevelVcsManager" settingsEditedManually="false">
+    <OptionsSetting value="true" id="Add" />
+    <OptionsSetting value="true" id="Remove" />
+    <OptionsSetting value="true" id="Checkout" />
+    <OptionsSetting value="true" id="Update" />
+    <OptionsSetting value="true" id="Status" />
+    <OptionsSetting value="true" id="Edit" />
+    <ConfirmationsSetting value="0" id="Add" />
+    <ConfirmationsSetting value="0" id="Remove" />
+  </component>
+  <component name="ProjectView">
+    <navigator currentView="ProjectPane" proportions="" version="1">
+      <flattenPackages />
+      <showMembers />
+      <showModules />
+      <showLibraryContents />
+      <hideEmptyPackages />
+      <abbreviatePackageNames />
+      <autoscrollToSource />
+      <autoscrollFromSource />
+      <sortByType />
+    </navigator>
+    <panes>
+      <pane id="ProjectPane">
+        <subPane>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="osrm-backend" />
+              <option name="myItemType" value="com.jetbrains.cidr.projectView.CidrFilesViewHelper$1$1" />
+            </PATH_ELEMENT>
+          </PATH>
+        </subPane>
+      </pane>
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="recentsLimit" value="5" />
+    <property name="settings.editor.selected.configurable" value="CMakeSettings" />
+    <property name="settings.editor.splitter.proportion" value="0.2" />
+    <property name="FullScreen" value="false" />
+  </component>
+  <component name="RunManager" selected="Application.Build All">
+    <configuration default="true" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="Build All" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" CONFIG_NAME="Debug" EXPLICIT_BUILD_TARGET_NAME="all">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="benchmarks" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="benchmarks" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="benchmarks">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="COORDLIB" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="COORDLIB" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="COORDLIB">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="datastructure-tests" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="datastructure-tests" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="datastructure-tests">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="FINGERPRINT" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="FINGERPRINT" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="FINGERPRINT">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="FingerPrintConfigure" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="FingerPrintConfigure" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="FingerPrintConfigure">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="GITDESCRIPTION" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="GITDESCRIPTION" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="GITDESCRIPTION">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="IMPORT" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="IMPORT" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="IMPORT">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="OSRM" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="OSRM" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="OSRM">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="osrm-datastore" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="osrm-datastore" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="osrm-datastore">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="osrm-exporter" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="osrm-exporter" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="osrm-exporter">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="osrm-extract" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="osrm-extract" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="osrm-extract">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="osrm-prepare" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="osrm-prepare" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="osrm-prepare">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="osrm-routed" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="osrm-routed" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="osrm-routed">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="rtree-bench" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="rtree-bench" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="rtree-bench">
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="false" name="tests" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS="FALSE" PROJECT_NAME="OSRM" TARGET_NAME="tests" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="OSRM" RUN_TARGET_NAME="tests">
+      <envs />
+      <method />
+    </configuration>
+    <list size="16">
+      <item index="0" class="java.lang.String" itemvalue="Application.Build All" />
+      <item index="1" class="java.lang.String" itemvalue="Application.benchmarks" />
+      <item index="2" class="java.lang.String" itemvalue="Application.COORDLIB" />
+      <item index="3" class="java.lang.String" itemvalue="Application.datastructure-tests" />
+      <item index="4" class="java.lang.String" itemvalue="Application.FINGERPRINT" />
+      <item index="5" class="java.lang.String" itemvalue="Application.FingerPrintConfigure" />
+      <item index="6" class="java.lang.String" itemvalue="Application.GITDESCRIPTION" />
+      <item index="7" class="java.lang.String" itemvalue="Application.IMPORT" />
+      <item index="8" class="java.lang.String" itemvalue="Application.OSRM" />
+      <item index="9" class="java.lang.String" itemvalue="Application.osrm-datastore" />
+      <item index="10" class="java.lang.String" itemvalue="Application.osrm-exporter" />
+      <item index="11" class="java.lang.String" itemvalue="Application.osrm-extract" />
+      <item index="12" class="java.lang.String" itemvalue="Application.osrm-prepare" />
+      <item index="13" class="java.lang.String" itemvalue="Application.osrm-routed" />
+      <item index="14" class="java.lang.String" itemvalue="Application.rtree-bench" />
+      <item index="15" class="java.lang.String" itemvalue="Application.tests" />
+    </list>
+  </component>
+  <component name="ShelveChangesManager" show_recycled="false" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="73e62503-d54b-463b-9a82-cca64ab93633" name="Default" comment="" />
+      <created>1427273516282</created>
+      <option name="number" value="Default" />
+      <updated>1427273516282</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="47" y="-3" width="1873" height="1083" extended-state="6" />
+    <editor active="false" />
+    <layout>
+      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
+      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="CMake" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.32271764" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.25" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
+      <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="SLIDING" type="SLIDING" visible="false" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
+      <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
+    </layout>
+  </component>
+  <component name="VcsContentAnnotationSettings">
+    <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager />
+    <watches-manager />
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$APPLICATION_HOME_DIR$/bin/cmake/share/cmake-3.1/Modules/FindPackageHandleStandardArgs.cmake">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.33333334">
+          <caret line="138" column="0" selection-start-line="138" selection-start-column="0" selection-end-line="138" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/CMakeLists.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.4489796">
+          <caret line="253" column="0" selection-start-line="253" selection-start-column="0" selection-end-line="253" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+  </component>
+</project>
