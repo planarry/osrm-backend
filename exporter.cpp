@@ -250,7 +250,7 @@ int main (int argc, char *argv[])
       "WHERE e.confirmed AND s.confirmed AND t.confirmed "
       "AND speed>0 "
       "AND (forward or backward) "
-      "AND ST_Distance(s.coord::geometry, t.coord::geometry)>0 "
+//      "AND ST_Distance(s.coord::geometry, t.coord::geometry)>0 "
       "ORDER BY srcID";
     pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
     while(cur>>res)
