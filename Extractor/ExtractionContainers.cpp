@@ -378,6 +378,8 @@ void ExtractionContainers::PrepareData(const std::string &output_file_name,
                 file_out_stream.write((char *)&edge_iterator->is_access_restricted, sizeof(bool));
                 file_out_stream.write((char *)&edge_iterator->is_contra_flow, sizeof(bool));
                 file_out_stream.write((char *)&edge_iterator->is_split, sizeof(bool));
+                file_out_stream.write((char *)&edge_iterator->maxload, sizeof(short));
+                file_out_stream.write((char *)&edge_iterator->maxheight, sizeof(short));
                 ++number_of_used_edges;
             }
             ++edge_iterator;

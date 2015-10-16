@@ -129,7 +129,9 @@ void ExtractorCallbacks::ProcessWay(ExtractionWay &parsed_way)
             (0 < parsed_way.duration),
             parsed_way.isAccessRestricted,
             false,
-            split_edge));
+            split_edge,
+            parsed_way.maxload,
+            parsed_way.maxheight));
         external_memory.used_node_id_list.push_back(parsed_way.path[n]);
     }
     external_memory.used_node_id_list.push_back(parsed_way.path.back());
@@ -159,7 +161,9 @@ void ExtractorCallbacks::ProcessWay(ExtractionWay &parsed_way)
                                       (0 < parsed_way.duration),
                                       parsed_way.isAccessRestricted,
                                       (ExtractionWay::oneway == parsed_way.direction),
-                                      split_edge));
+                                      split_edge,
+                                      parsed_way.maxload,
+                                      parsed_way.maxheight));
         }
         external_memory.way_start_end_id_list.push_back(
             WayIDStartAndEndEdge(parsed_way.id,

@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "PBFParser.h"
 #include "ScriptingEnvironment.h"
 #include "XMLParser.h"
+#include "SQLParser.h"
 
 #include "../Util/GitDescription.h"
 #include "../Util/OSRMException.h"
@@ -52,7 +53,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <thread>
 #include <unordered_map>
 
-Extractor::Extractor() : requested_num_threads(0), file_has_pbf_format(false)
+Extractor::Extractor() : requested_num_threads(0), input_format(XML_FORMAT)
 {
 }
 
@@ -84,7 +85,7 @@ bool Extractor::ParseArguments(int argc, char *argv[])
     boost::program_options::options_description hidden_options("Hidden options");
     hidden_options.add_options()(
         "input,i",
-        boost::program_options::value<boost::filesystem::path>(&input_path),
+        boost::program_options::value<std::string>(&input_path),
         "Input file in .osm, .osm.bz2 or .osm.pbf format");
 
     // positional option
@@ -146,15 +147,15 @@ bool Extractor::ParseArguments(int argc, char *argv[])
 
 void Extractor::GenerateOutputFilesNames()
 {
-    output_file_name = input_path.string();
-    restriction_file_name = input_path.string();
+    output_file_name = input_path;
+    restriction_file_name = input_path;
     std::string::size_type pos = output_file_name.find(".osm.bz2");
     if (pos == std::string::npos)
     {
         pos = output_file_name.find(".osm.pbf");
         if (pos != std::string::npos)
         {
-            file_has_pbf_format = true;
+            input_format = PBF_FORMAT;
         }
         else
         {
@@ -166,7 +167,7 @@ void Extractor::GenerateOutputFilesNames()
         pos = output_file_name.find(".pbf");
         if (pos != std::string::npos)
         {
-            file_has_pbf_format = true;
+            input_format = PBF_FORMAT;
         }
     }
     if (pos == std::string::npos)
@@ -174,8 +175,30 @@ void Extractor::GenerateOutputFilesNames()
         pos = output_file_name.find(".osm");
         if (pos == std::string::npos)
         {
-            output_file_name.append(".osrm");
-            restriction_file_name.append(".osrm.restrictions");
+            pos = output_file_name.find("dbname=");
+            if (pos == std::string::npos)
+            {
+                output_file_name.append(".osrm");
+                restriction_file_name.append(".osrm.restrictions");
+            }
+            else
+            {
+                input_format = SQL_FORMAT;
+                output_file_name.replace(0, pos + 7, "");
+                restriction_file_name.replace(0, pos + 7, "");
+
+                pos = output_file_name.find(" ");
+                if (pos == std::string::npos)
+                {
+                    output_file_name.append(".osrm");
+                    restriction_file_name.append(".osrm.restrictions");
+                }
+                else
+                {
+                    output_file_name.replace(pos, output_file_name.size() - pos, ".osrm");
+                    restriction_file_name.replace(pos, restriction_file_name.size() - pos, ".osrm.restrictions");
+                }
+            }
         }
         else
         {
@@ -207,9 +230,9 @@ int Extractor::Run(int argc, char *argv[])
             return 1;
         }
 
-        if (!boost::filesystem::is_regular_file(input_path))
+        if (!boost::filesystem::is_regular_file(input_path) && input_path.find("dbname=") == std::string::npos)
         {
-            SimpleLogger().Write(logWARNING) << "Input file " << input_path.string()
+            SimpleLogger().Write(logWARNING) << "Input file " << input_path
                                              << " not found!";
             return 1;
         }
@@ -223,7 +246,7 @@ int Extractor::Run(int argc, char *argv[])
 
         const unsigned recommended_num_threads = tbb::task_scheduler_init::default_num_threads();
 
-        SimpleLogger().Write() << "Input file: " << input_path.filename().string();
+        SimpleLogger().Write() << "Input file: " << input_path;
         SimpleLogger().Write() << "Profile: " << profile_path.filename().string();
         SimpleLogger().Write() << "Threads: " << requested_num_threads;
         if (recommended_num_threads != requested_num_threads)
@@ -246,18 +269,24 @@ int Extractor::Run(int argc, char *argv[])
         string_map[""] = 0;
         auto extractor_callbacks = new ExtractorCallbacks(extraction_containers, string_map);
         BaseParser *parser;
-        if (file_has_pbf_format)
-        {
-            parser = new PBFParser(input_path.string().c_str(),
-                                   extractor_callbacks,
-                                   scripting_environment,
-                                   requested_num_threads);
-        }
-        else
-        {
-            parser = new XMLParser(input_path.string().c_str(),
-                                   extractor_callbacks,
-                                   scripting_environment);
+        switch (input_format) {
+            case PBF_FORMAT:
+                parser = new PBFParser(input_path.c_str(),
+                                       extractor_callbacks,
+                                       scripting_environment,
+                                       requested_num_threads);
+                break;
+            case XML_FORMAT:
+                parser = new XMLParser(input_path.c_str(),
+                                       extractor_callbacks,
+                                       scripting_environment);
+                break;
+            case SQL_FORMAT:
+                parser = new SQLParser(input_path.c_str(),
+                                       extractor_callbacks,
+                                       scripting_environment);
+                break;
+            default:;
         }
 
         if (!parser->ReadHeader())

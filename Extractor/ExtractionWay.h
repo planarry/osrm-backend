@@ -53,6 +53,8 @@ struct ExtractionWay
         roundabout = false;
         isAccessRestricted = false;
         ignoreInGrid = false;
+        maxload = MAXLOAD_LIMIT;
+        maxheight = MAXHEIGHT_LIMIT;
     }
 
     enum Directions
@@ -72,6 +74,8 @@ struct ExtractionWay
     bool roundabout;
     bool isAccessRestricted;
     bool ignoreInGrid;
+    short maxload;
+    short maxheight;
     std::vector<NodeID> path;
     HashTable<std::string, std::string> keyVals;
 };
