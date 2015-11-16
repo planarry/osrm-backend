@@ -109,23 +109,32 @@ bool SQLParser::Parse() {
         pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
         unsigned prev_way_id = UINT_MAX;
         ExtractionWay way;
+        double temp_speed = -1, temp_backward_speed = -1;
 
         while (cur >> res)
             for (auto row : res) {
                 if (row["id"].as<unsigned>() != prev_way_id) {
                     if (prev_way_id != UINT_MAX) {
                         ParseWayInLua(way, lua_state);
+                        if (way.speed > 0) {
+                            if (temp_speed > 0)
+                                way.speed = temp_speed;
+                            if (temp_backward_speed > 0)
+                                way.backward_speed = temp_backward_speed;
+                        }
                         extractor_callbacks->ProcessWay(way);
                         progress.printIncrement();
                         way = ExtractionWay();
+                        temp_speed = -1;
+                        temp_backward_speed = -1;
                     }
                     prev_way_id = way.id = row["id"].as<unsigned>();
                     if (!row["b_speed"].is_null()) {
-                        way.speed = row["b_speed"].as<double>();
-                        way.backward_speed = row["b_speed"].as<double>();
+                        temp_speed = row["b_speed"].as<double>();
+                        temp_backward_speed = row["b_speed"].as<double>();
                     }
                     if (!row["f_speed"].is_null())
-                        way.speed = row["f_speed"].as<double>();
+                        temp_speed = row["f_speed"].as<double>();
                     if (!row["nodes"].is_null()) {
                         std::stringstream ss(row["nodes"].as<std::string>());
                         std::string node_id_str;
