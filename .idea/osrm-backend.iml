@@ -1,8 +1,104 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="CPP_MODULE" version="4">
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/.git/HEAD" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/.git/refs/heads/sql_extractor" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Algorithms/DouglasPeucker.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Algorithms/DouglasPeucker.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Algorithms/PolylineCompressor.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Algorithms/PolylineCompressor.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Benchmarks/StaticRTreeBench.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/CMakeLists.txt" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Contractor/EdgeBasedGraphFactory.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Contractor/EdgeBasedGraphFactory.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Contractor/GeometryCompressor.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Contractor/GeometryCompressor.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Contractor/Prepare.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Contractor/Prepare.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/DataStructures/Coordinate.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/DataStructures/HilbertValue.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/DataStructures/HilbertValue.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/DataStructures/ImportEdge.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/DataStructures/ImportEdge.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/DataStructures/ImportNode.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/DataStructures/ImportNode.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/DataStructures/RestrictionMap.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/DataStructures/RestrictionMap.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/DataStructures/RouteParameters.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/DataStructures/SearchEngineData.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/DataStructures/SearchEngineData.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Descriptors/DescriptionFactory.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Descriptors/DescriptionFactory.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/BaseParser.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/BaseParser.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/ExtractionContainers.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/ExtractionContainers.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/Extractor.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/Extractor.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/ExtractorCallbacks.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/ExtractorCallbacks.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/PBFParser.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/PBFParser.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/SQLParser.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/SQLParser.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/ScriptingEnvironment.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/ScriptingEnvironment.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/XMLParser.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Extractor/XMLParser.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Library/OSRM_impl.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Library/OSRM_impl.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Server/Connection.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Server/Connection.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Server/Http/Reply.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Server/RequestHandler.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Server/RequestHandler.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Server/RequestParser.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Server/RequestParser.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/UnitTests/DataStructures/BinaryHeapTest.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/UnitTests/DataStructures/RangeTableTest.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/UnitTests/DataStructures/StaticGraphTest.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/UnitTests/DataStructures/StaticRTreeTest.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/UnitTests/datastructure_tests.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Util/FingerPrint.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Util/GitDescription.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Util/GitDescription.cpp.in" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Util/GitDescription.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cmake/FindLua52.cmake" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cmake/FindLuaJIT.cmake" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cmake/FindLuabind.cmake" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cmake/FindOSMPBF.cmake" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cmake/FindSTXXL.cmake" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cmake/FindTBB.cmake" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cmake/GetGitRevisionDescription.cmake" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cmake/GetGitRevisionDescription.cmake.in" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cmake/pkgconfig.in" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/datastore.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/exporter.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/extractor.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/prepare.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/routed.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/unreached.cpp" isTestSource="false" />
+    </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module-library">
+      <library name="Header Search Paths">
+        <CLASSES>
+          <root url="file://$MODULE_DIR$/Include" />
+          <root url="file:///usr/include" />
+          <root url="file:///usr/lib/gcc/x86_64-linux-gnu/4.8/include" />
+          <root url="file:///usr/lib/gcc/x86_64-linux-gnu/4.8/include-fixed" />
+          <root url="file:///usr/local/include" />
+        </CLASSES>
+        <SOURCES>
+          <root url="file://$MODULE_DIR$/Include" />
+          <root url="file:///usr/include" />
+          <root url="file:///usr/lib/gcc/x86_64-linux-gnu/4.8/include" />
+          <root url="file:///usr/lib/gcc/x86_64-linux-gnu/4.8/include-fixed" />
+          <root url="file:///usr/local/include" />
+        </SOURCES>
+      </library>
+    </orderEntry>
   </component>
 </module>
