@@ -111,23 +111,32 @@ bool checkTurnRestriction(const NodeID from, const NodeID via, const NodeID to) 
 
 NodeID findNextEdge(NodeID from, NodeID via, const std::vector<bool> &visited, bool backward = false) {
     bool next_source, direction;
-    NodeID to, temp;
+//    if((internal_to_external_node_map[via].node_id == 26261475)
+//            || (internal_to_external_node_map[via].node_id == 359985524))
+//    {
+//        std::cout<<"AAAAAAAAAA!";
+//    }
+    NodeID to, from_t, to_t;
     if (!std::binary_search(barrier_node_list.begin(), barrier_node_list.end(), via)) {     //checking for barrier
         for (unsigned int i: nodes[via]) {                                                  //iterating node edges
             if (visited[i]) continue;                                                       //if visited
             if (edge_list[i].access_restricted) continue;                                   //if restricted
-            next_source = ((via == edge_list[i].source) != backward);                       //checking mutual point
-            direction = (next_source) ? edge_list[i].forward : edge_list[i].backward;       //checking direction
+            next_source = (via == edge_list[i].source);                       //checking mutual point
+            if (backward) {
+                direction = (!next_source) ? edge_list[i].forward : edge_list[i].backward;       //checking direction
+            } else {
+                direction = (next_source) ? edge_list[i].forward : edge_list[i].backward;
+            }
             if (!direction) continue;
             to = next_source ? edge_list[i].target : edge_list[i].source;                   //to node
             if (backward) {
-                temp = from;
-                from = to;
-                to = temp;
+                to_t = from;
+                from_t = to;
+            } else {
+                to_t = to;
+                from_t = from;
             }
-            if (!checkTurnRestriction(from,
-                                      via,
-                                      to))
+            if (!checkTurnRestriction(from_t, via, to_t))
                 continue;
             return i;
         }
@@ -154,10 +163,7 @@ void depthFirstSearch(const NodeID first, std::vector<bool> &visited, bool backw
         }
 
         if (edge_list[current].forward) {               //checking current edge direction
-            next = findNextEdge(from,
-                                via,
-                                visited,
-                                backward);
+            next = findNextEdge(from, via, visited, backward);
             if (next != UINT_MAX) {
                 stack.push(next);
                 continue;
@@ -165,10 +171,7 @@ void depthFirstSearch(const NodeID first, std::vector<bool> &visited, bool backw
         }
 
         if (edge_list[current].backward) {              //checking current edge direction
-            next = findNextEdge(via,
-                                from,
-                                visited,
-                                backward);
+            next = findNextEdge(via, from, visited, backward);
             if (next != UINT_MAX) {
                 stack.push(next);
                 continue;
@@ -366,8 +369,8 @@ int main(int argc, char *argv[]) {
             (edge_list.size() * ((5 * sizeof(bool)) + (4 * sizeof(short)) + (3 * sizeof(unsigned)) + (2 * sizeof(int)))) << std::endl <<
             (5 * sizeof(bool)) + (4 * sizeof(short)) + (3 * sizeof(unsigned)) + (2 * sizeof(int)) << std::endl;
 
-    TurnRestriction restr;
-
+//    TurnRestriction restr;
+//
 //    for (unsigned int i = 0; i < internal_to_external_node_map.size(); i++) {
 //        switch (internal_to_external_node_map[i].node_id) {
 //            case 769:
@@ -403,6 +406,21 @@ int main(int argc, char *argv[]) {
 //                    restr = restriction_list[j];
 //                    std::cout << restr.fromNode << ' ' << restr.viaNode << ' ' << restr.toNode << ' ' << restr.flags.isOnly << std::endl;
 //                }
+//        }
+//    }
+
+//    for (unsigned int i = 0; i < internal_to_external_node_map.size(); ++i) {
+//        if (!used_nodes[i])
+//            std::cout << internal_to_external_node_map[i].node_id << ' ' << nodes[i].size() << std::endl;
+//        if (internal_to_external_node_map[i].node_id == 359985524) {
+//            if (restrictions.find(i) != restrictions.end()) {
+//                for (unsigned int j: restrictions[i]) {
+//                    std::cout << " from " << internal_to_external_node_map[restriction_list[j].fromNode].node_id <<
+//                            " via " << internal_to_external_node_map[restriction_list[j].viaNode].node_id <<
+//                            " to " << internal_to_external_node_map[restriction_list[j].toNode].node_id <<
+//                            " is_only " << restriction_list[j].flags.isOnly << std::endl;
+//                }
+//            }
 //        }
 //    }
 

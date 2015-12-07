@@ -176,7 +176,10 @@ bool SQLParser::Parse() {
                     "FROM current_relations r "
                     "WHERE (SELECT 1 FROM current_relation_members"
                     " WHERE relation_id = r.id"
-                    " AND member_role='from' AND member_type='Way' LIMIT 1) IS NOT NULL";
+                    " AND member_role='from' AND member_type='Way' LIMIT 1) IS NOT NULL"
+                    " AND (SELECT 1 FROM current_relation_tags"
+                    " WHERE relation_id = r.id"
+                    " AND k='type' AND v='restriction' LIMIT 1) IS NOT NULL";
             pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
             while (cur >> res)
                 for (const auto &row : res) {
