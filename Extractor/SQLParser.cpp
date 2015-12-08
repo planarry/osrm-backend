@@ -116,12 +116,12 @@ bool SQLParser::Parse() {
                 if (row["id"].as<unsigned>() != prev_way_id) {
                     if (prev_way_id != UINT_MAX) {
                         ParseWayInLua(way, lua_state);
-                        if (way.speed > 0) {
-                            if (temp_speed > 0)
-                                way.speed = temp_speed;
-                            if (temp_backward_speed > 0)
-                                way.backward_speed = temp_backward_speed;
-                        }
+//                        if (way.speed > 0) {
+//                            if (temp_speed > 0)
+//                                way.speed = temp_speed;
+//                            if (temp_backward_speed > 0)
+//                                way.backward_speed = temp_backward_speed;
+//                        }
                         extractor_callbacks->ProcessWay(way);
                         progress.printIncrement();
                         way = ExtractionWay();
