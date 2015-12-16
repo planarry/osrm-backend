@@ -7,18 +7,22 @@
 
 class ExtractorCallbacks;
 
+enum InputFormat {
+    XML_FORMAT, PBF_FORMAT, SQL_FORMAT
+};
+
 /** \brief Class of 'extract' utility. */
 class Extractor
 {
   protected:
     unsigned requested_num_threads;
     boost::filesystem::path config_file_path;
-    boost::filesystem::path input_path;
+    std::string input_path;
     boost::filesystem::path profile_path;
 
     std::string output_file_name;
     std::string restriction_file_name;
-    bool file_has_pbf_format;
+    int input_format;
 
     /** \brief Parses "extractor's" command line arguments */
     bool ParseArguments(int argc, char *argv[]);

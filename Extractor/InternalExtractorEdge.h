@@ -38,39 +38,29 @@ struct InternalExtractorEdge
     InternalExtractorEdge()
         : start(0), target(0), type(0), direction(0), speed(0), name_id(0), is_roundabout(false),
           is_in_tiny_cc(false), is_duration_set(false), is_access_restricted(false),
-          is_contra_flow(false), is_split(false)
+          is_contra_flow(false), is_split(false), maxload(MAXLOAD_LIMIT), maxheight(MAXHEIGHT_LIMIT)
     {
     }
 
-    explicit InternalExtractorEdge(NodeID start,
-                                   NodeID target,
-                                   short type,
-                                   short direction,
-                                   double speed,
-                                   unsigned name_id,
-                                   bool is_roundabout,
-                                   bool is_in_tiny_cc,
-                                   bool is_duration_set,
-                                   bool is_access_restricted,
-                                   bool is_contra_flow,
-                                   bool is_split)
+    explicit InternalExtractorEdge(NodeID start, NodeID target, short type, short direction, double speed, unsigned name_id,
+                              bool is_roundabout, bool is_in_tiny_cc, bool is_duration_set, bool is_access_restricted,
+                              bool is_contra_flow, bool is_split, short maxload, short maxheight)
         : start(start), target(target), type(type), direction(direction), speed(speed),
           name_id(name_id), is_roundabout(is_roundabout), is_in_tiny_cc(is_in_tiny_cc),
           is_duration_set(is_duration_set), is_access_restricted(is_access_restricted),
-          is_contra_flow(is_contra_flow), is_split(is_split)
-    {
+          is_contra_flow(is_contra_flow), is_split(is_split), maxload(maxload), maxheight(maxheight) {
         BOOST_ASSERT(0 <= type);
     }
 
     // necessary static util functions for stxxl's sorting
     static InternalExtractorEdge min_value()
     {
-        return InternalExtractorEdge(0, 0, 0, 0, 0, 0, false, false, false, false, false, false);
+        return InternalExtractorEdge(0, 0, 0, 0, 0, 0, false, false, false, false, false, false, MAXLOAD_LIMIT, MAXHEIGHT_LIMIT);
     }
     static InternalExtractorEdge max_value()
     {
         return InternalExtractorEdge(
-            SPECIAL_NODEID, SPECIAL_NODEID, 0, 0, 0, 0, false, false, false, false, false, false);
+            SPECIAL_NODEID, SPECIAL_NODEID, 0, 0, 0, 0, false, false, false, false, false, false, MAXLOAD_LIMIT, MAXHEIGHT_LIMIT);
     }
 
     NodeID start;
@@ -85,6 +75,8 @@ struct InternalExtractorEdge
     bool is_access_restricted;
     bool is_contra_flow;
     bool is_split;
+    short maxload;
+    short maxheight;
 
     FixedPointCoordinate source_coordinate;
     FixedPointCoordinate target_coordinate;

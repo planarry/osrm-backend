@@ -1,7 +1,7 @@
 -- Begin of globals
 --require("lib/access") --function temporarily inlined
 
-barrier_whitelist = { ["cattle_grid"] = true, ["border_control"] = true, ["toll_booth"] = true, ["sally_port"] = true, ["gate"] = true, ["no"] = true, ["entrance"] = true }
+barrier_whitelist = { ["cattle_grid"] = true, ["border_control"] = true, ["toll_booth"] = true, ["sally_port"] = true, ["gate"] = true, ["lift_gate"] = true, ["no"] = true, ["entrance"] = true }
 access_tag_whitelist = { ["yes"] = true, ["motorcar"] = true, ["motor_vehicle"] = true, ["vehicle"] = true, ["permissive"] = true, ["designated"] = true }
 access_tag_blacklist = { ["no"] = true, ["private"] = true, ["agricultural"] = true, ["forestry"] = true, ["emergency"] = true }
 access_tag_restricted = { ["destination"] = true, ["delivery"] = true }
@@ -212,6 +212,7 @@ function way_function (way)
   -- local barrier = way.tags:Find("barrier")
   -- local cycleway = way.tags:Find("cycleway")
   local service  = way.tags:Find("service")
+  local hgv  = way.tags:Find("hgv")
 
   -- Set the name that will be used for instructions
   if "" ~= ref then
@@ -224,6 +225,10 @@ function way_function (way)
 
   if "roundabout" == junction then
     way.roundabout = true;
+  end
+
+  if "no" == hgv then
+    way.maxload = 35;
   end
 
   -- Set access restriction flag if access is allowed under certain restrictions only

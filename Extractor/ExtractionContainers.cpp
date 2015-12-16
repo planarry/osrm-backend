@@ -334,13 +334,13 @@ void ExtractionContainers::PrepareData(const std::string &output_file_name,
                 edge_iterator->target_coordinate.lat = node_iterator->lat;
                 edge_iterator->target_coordinate.lon = node_iterator->lon;
 
-                const double distance = FixedPointCoordinate::ApproximateEuclideanDistance(
+                const double distance = 10. * FixedPointCoordinate::ApproximateEuclideanDistance(
                     edge_iterator->source_coordinate.lat,
                     edge_iterator->source_coordinate.lon,
                     node_iterator->lat,
                     node_iterator->lon);
 
-                const double weight = (distance * 10.) / (edge_iterator->speed / 3.6);
+                const double weight = distance / (edge_iterator->speed / 3.6);
                 int integer_weight = std::max(
                     1,
                     (int)std::floor(
@@ -378,6 +378,8 @@ void ExtractionContainers::PrepareData(const std::string &output_file_name,
                 file_out_stream.write((char *)&edge_iterator->is_access_restricted, sizeof(bool));
                 file_out_stream.write((char *)&edge_iterator->is_contra_flow, sizeof(bool));
                 file_out_stream.write((char *)&edge_iterator->is_split, sizeof(bool));
+                file_out_stream.write((char *)&edge_iterator->maxload, sizeof(short));
+                file_out_stream.write((char *)&edge_iterator->maxheight, sizeof(short));
                 ++number_of_used_edges;
             }
             ++edge_iterator;

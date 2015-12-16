@@ -299,6 +299,7 @@ target_link_libraries(osrm-routed ${ZLIB_LIBRARY})
 
 
 target_link_libraries(osrm-exporter pqxx)
+target_link_libraries(osrm-extract pqxx)
 
 if(WITH_TOOLS OR BUILD_TOOLS)
   message(STATUS "Activating OSRM internal tools")
