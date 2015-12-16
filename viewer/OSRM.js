@@ -2436,145 +2436,312 @@ OSRM.VERSION = "0.1.11", OSRM.DATE = "131122", OSRM.CONSTANTS = {}, OSRM.DEFAULT
 	
 
 	
-function rgrand(min, max) {
-    return Math.random() * (max - min) + min;
+
+function showAll(){
+    $.each(a.coords,function(){
+        a.markers[this.index].marker.setOpacity(1);
+    })
 }
-function randLatLng(p1, p2) {
-    return L.latLng(rgrand(p1.lat, p2.lat), rgrand(p1.lng, p2.lng));
+function showCore(c){
+    $.each(a.coords,function(){
+        a.markers[this.index].marker.setOpacity(0.1);
+    })
+    $.each(a.cores[c].ptr_wrapper.data.tails,function(){
+        a.markers[this].marker.setOpacity(0.5);
+    })
+    $.each(a.cores[c].ptr_wrapper.data.inners,function(){
+        a.markers[this].marker.setOpacity(1);
+    })
 }
-function addRandom(n) {
-	for(var i=0;i<n; i++) {
-		var index = OSRM.G.markers.setVia(0, randLatLng(OSRM.G.markers.route[0].position, 
-			OSRM.G.markers.route[OSRM.G.markers.route.length-1].position));
-		OSRM.G.markers.route[index].show();
-	}
+function findCores(){
+    var s='';
+    var tail=prompt();
+    $.each(a.cores,function(){
+        var c=this.ptr_wrapper.data.index;
+        $.each(this.ptr_wrapper.data.tails,function(){
+            if(this==tail) s+=c+' '
+        });
+    });
+    alert(s);
+}
+function showChain(){
+    var i=prompt("",window.show_val)
+    if(!i&&i!==0) return;
+    window.show_val=i
+    $.each(a.coords,function(){
+        a.markers[this.index].marker.setIcon(getIcon(this.index, 14, '#fff', '#000'));
+    })
+    if(i!="00")
+        $.each(JSON.parse("["+i+"]"),function(){
+            a.markers[this].marker.setIcon(getIcon(this, 14, '#000', '#fff'));
+        })
 }
 
-function showTours(a){
-	window.glob=a
-	OSRM.G.route.hideRoute();
-	printSide()
-	showTour(0, '#0033FF');
-	showDAG();
-}
-function renumberByTour(n)
-{
-	for(var i=1; i<glob.n-1; ++i)
-		OSRM.G.markers.route[i].marker.setIcon(OSRM.G.icons['marker-via'])
-	OSRM.G.markers.route[0].marker.setIcon(OSRM.G.icons['marker-drag'])
-	OSRM.G.markers.route[glob.n-1].marker.setIcon(OSRM.G.icons['marker-drag'])
-	OSRM.G.markers.route[glob.tours[n][1]].marker.setIcon(OSRM.G.icons['marker-source'])
-	OSRM.G.markers.route[glob.tours[n][glob.tours[n].length-2]].marker.setIcon(OSRM.G.icons['marker-target'])
-	for(var i=0; i<glob.tours[n].length-1; i++)
-		OSRM.G.markers.route[glob.tours[n][i]].marker.setLabel(i);
-	return false;
-}
-function renumberByClick()
-{
-	for(var i=1; i<glob.n-1; ++i)
-		OSRM.G.markers.route[i].marker.setIcon(OSRM.G.icons['marker-via'])
-	OSRM.G.markers.route[0].marker.setIcon(OSRM.G.icons['marker-source'])
-	OSRM.G.markers.route[glob.n-1].marker.setIcon(OSRM.G.icons['marker-target'])
-	OSRM.G.markers.relabelViaMarkers();
-	return false;
-}
-
-function addRandomAsk()
-{
-	addRandom(prompt("Сколько добавить?",10)*1)
-	return false;
-}
-
-function printSide()
-{
-	var box=document.getElementById('clusters-box');
-	var text='<a href="#" onclick="return renumberByTour(0)">Нумеровать по проезду</a><br/><br/>'+
-	'<a href="#" onclick="return renumberByClick()">Нумеровать по айди</a><br/><br/>'+
-	'<a href="#" onclick="return addRandomAsk()">Добавить случайные</a><br/><br/>'+
-	'Цена: '+glob.cost+'; Время: '+glob.time+'<br/><br/>'+
-	'Цепочки<ul>';
-	for(var i = 0; i<glob.n_chains; ++i)
-	{
-		text+='<li>'+i+'='+glob.chains[i][0]
-		for(var j = 1; j<glob.chains[i].length; ++j)
-			text+='+'+glob.chains[i][j]
-		text+='</li>';
-	}
-	text+='</ul>Ядра<ul>';
-	for(var i = 0; i<glob.n_cores; ++i)
-	{
-		text+='<li>'+i+'='+glob.cores[i][0]
-		for(var j = 1; j<glob.cores[i].length; ++j)
-			text+='+'+glob.cores[i][j]
-		text+='</li>';
-	}
-	text+='</ul>Туры<ul>';
-	for(var i = 0; i<glob.tours.length; ++i)
-	{
-		text+='<li>'+i+'='+glob.tours[i][0]
-		for(var j = 1; j<glob.tours[i].length; ++j)
-			text+='+'+glob.tours[i][j]
-		text+='</li>';
-	}
-	text+='</ul>';
-	box.innerHTML=text;
-}
-
-function showTour(n, color)
-{
-	tsp.clearRoutes();
-	for(var i=1;i<glob.tours[n].length;++i)
-	{
-		var b = OSRM.G.active_routing_server_url + "?z=" + OSRM.G.map.getZoom() + "&output=json&jsonp=%jsonp&alt=false&instructions=false";
-		b += "&loc=" + OSRM.G.markers.route[glob.tours[n][i-1]].position.lat.toFixed(OSRM.C.PRECISION) + 
-			"," + OSRM.G.markers.route[glob.tours[n][i-1]].position.lng.toFixed(OSRM.C.PRECISION);
-		b += "&loc=" + OSRM.G.markers.route[glob.tours[n][i]].position.lat.toFixed(OSRM.C.PRECISION) + 
-			"," + OSRM.G.markers.route[glob.tours[n][i]].position.lng.toFixed(OSRM.C.PRECISION);
-		OSRM.JSONP.clear("tsp"+i);
-		OSRM.JSONP.call(b, function(response){
-			var geometry = OSRM.RoutingGeometry._decode(response.route_geometry, OSRM.C.PRECISION );
-			tsp.addRoute(geometry);
-		}, function(){}, OSRM.DEFAULTS.JSONP_TIMEOUT, "tsp"+i);
-	}
-	
-	tsp.show();
-	tsp.setStyle({color:color, weight:5, dashArray:""});
-	renumberByTour(n)
-}
-
-
-function line(from, to)
-{ return [OSRM.G.markers.route[from].position, OSRM.G.markers.route[to].position] }
 function lineChain(from, to)
-{ return line(glob.chains[from][glob.chains[from].length-1], glob.chains[to][0]) }
+{ return [a.markers[from].position, a.markers[to].position] }
 
-var tsp=new OSRM.MultiRoute("tsp");
-var innercore=new OSRM.MultiRoute("innercore");
-var innerchain=new OSRM.MultiRoute("innerchain");
+
+
 var tails=new OSRM.MultiRoute("tails");
+var inners=new OSRM.MultiRoute("inners");
+var a={coords:[]}
 
-function showDAG()
-{
-	innercore.clearRoutes();
-	innerchain.clearRoutes();
-	tails.clearRoutes();
-	for(var i=0;i<glob.n_chains;++i)
-		for(var j=1;j<glob.chains[i].length;++j) 
-			innerchain.addRoute(line(glob.chains[i][j-1], glob.chains[i][j]));
-	for(var i=0;i<glob.n_chains;++i)
-		for(var j=0;j<glob.nearest[i].length;++j) {
-			var onecore=false;
-			for(var c=0;!onecore && c<glob.n_cores;++c)
-				onecore = (glob.cores[c].indexOf(i)!=-1) && (glob.cores[c].indexOf(glob.nearest[i][j])!=-1)
-			if(onecore)
-				innercore.addRoute(lineChain(i, glob.nearest[i][j]));
-			else 
-				tails.addRoute(lineChain(i, glob.nearest[i][j]));
-		}
-	tails.show();
-	innercore.show();
-	innerchain.show();
-	tails.setStyle({color:'#3366FF', weight:1, dashArray:""});
-	innercore.setStyle({color:'#222222', weight:2, dashArray:"8,6"});
-	innerchain.setStyle({color:'#000000', weight:2, dashArray:""});
+function SCT(b){
+    $.each(a.coords,function(){
+        a.markers[this.index].hide()
+    })
+    a=b;
+    a.markers=[];
+    $.each(a.coords,function(){
+        var tit="";
+        if(this.tws)
+        $.each(this.tws,function(){
+            var start = new Date(this.start*1000);
+            var finish = new Date(this.finish*1000);
+            var sh = start.getUTCHours();
+            var sm = "0" + start.getUTCMinutes();
+            var fh = finish.getUTCHours();
+            var fm = "0" + finish.getUTCMinutes();
+
+            tit+=sh+ ':' + sm.substr(sm.length-2)+ ' - ' + fh+ ':' + fm.substr(fm.length-2)+"\n"
+        })
+        a.markers[this.index]=new OSRM.RouteMarker(OSRM.C.VIA_LABEL, { draggable: 0, icon: OSRM.G.icons["marker-via"], dragicon: OSRM.G.icons["marker-via-drag"], title:tit}, this)
+        a.markers[this.index].show();
+        a.markers[this.index].marker.setIcon(getIcon(this.index, 14, '#fff', '#000'));
+    })
+
+    $.each(a.cores,function(){
+        var core = this;
+        $.each(core.ptr_wrapper.data.inners,function(){
+            a.markers[this].host_core=core.ptr_wrapper.data.index;
+        })
+    })
+
+    tails.clearRoutes()
+    inners.clearRoutes()
+    $.each(a.nearest_graph.forward_data,function(){
+        var from=this.key;
+        $.each(this.value,function(){
+            if(a.markers[from].host_core==a.markers[this].host_core && a.markers[from].host_core!=undefined)
+                inners.addRoute(lineChain(from, this));
+            else
+                tails.addRoute(lineChain(from, this));
+        })
+    })
+    tails.show();
+    inners.show();
+    inners.setStyle({color:'#222222', weight:2, dashArray:"6,4,2,8"});
+    tails.setStyle({color:'#3366FF', weight:1, dashArray:""});
+
+    var box=document.getElementById('clusters-box');
+    var text='<a href="#" onclick="return showAll()">showAll</a> <a href="#" onclick="return showChain()">showChain</a> <a href="#" onclick="return findCores()">findCores</a><br/><br/>';
+    text+='<input type="range" min="0" max="533" step="1" value="0" id="log_slider"><input type="checkbox" id="log_panner"><br/>'
+    text+='Ядра<ul>';
+    $.each(a.cores,function(i){
+        var core = this;
+        text+='<li><a href="#" onclick="return showCore('+i+')">'+core.ptr_wrapper.data.index+'</a>('+core.ptr_wrapper.data.inners.length+')='+core.ptr_wrapper.data.inners[0]
+        for(var j = 1; j<core.ptr_wrapper.data.inners.length; ++j)
+            text+='+'+core.ptr_wrapper.data.inners[j]
+        text+='</li>';
+    })
+    text+='</ul>';
+    box.innerHTML=text;
+
+    $('#log_slider').on('input', function(){log($(this).val()-0)})
 }
+
+
+function getDivIcon(param){
+    param.backColor2 = (param.backColor2 != undefined) ? param.backColor2 : param.backColor;
+
+    var width       = param.width;
+    var height      = param.height;
+    var bordrad     = "0px";
+
+    var style = "width: 100%; " +
+                "height: 100%; " +
+                "border: none; ";
+
+    var leftStyle =     "position: absolute; " +
+                        "border-radius: " + bordrad + " 0px 0px " + ((param.status == 1) ? "0px" : bordrad) + "; " +
+                        "height: " + height + "px; " +
+                        "left: 0px; " +
+                        "top: 0px; " +
+                        "width: " + (width / 2) + "px; " +
+                        "float: left; " +
+                        "border: none; ";
+    leftStyle +=        (param.status == 1) ? "background: url(http://sngtrans.com.ua/img/left.png) 0% 100% " + param.backColor + " no-repeat; "
+                        : "background: " + param.backColor + "; ";
+
+    var rightStyle =    "position: absolute; " +
+                        "border-radius: 0px " + bordrad + " " + ((param.status == 2) ? "0px" : bordrad) + " 0px; " +
+                        "height: " + height + "px; " +
+                        "left: " + (width / 2) + "px; " +
+                        "top: 0px; " +
+                        "width: " + (width / 2) + "px; " +
+                        "float: left; " +
+                        "border: none; ";
+    rightStyle +=       (param.status == 2) ? "background: url(http://sngtrans.com.ua/img/right.png) 100% 100% " + param.backColor + " no-repeat; "
+                        : "background: " + param.backColor2 + "; ";
+
+    var textStyle =     "position: absolute; " +
+                        "width: " + width + "px; " +
+                        "height: " + height + "px; " +
+                        "left: 0px; " +
+                        "top: 0px; " +
+                        "border: none; " +
+                        "background: none; " +
+                        "color: " + param.textColor + "; " +
+                        "text-align: center; ";
+                        
+    var anchorIcon =    (param.status == 2) ? [width, height] : [0, height];
+
+    var innerHTML =
+        "<div style = \"" + leftStyle + "\"></div>" +
+        "<div style = \"" + rightStyle + "\"></div>" +
+        "<div style =\"" + textStyle + "\">" + param.text + "</div>";
+    var code = "<div style = \"" + style + "\">" + innerHTML + "</div>";
+    
+    return L.divIcon({
+        iconSize    :   [width, height],
+        html        :   code,
+        iconAnchor  :   anchorIcon
+    });
+}
+
+function getIcon(numberIcon, typeIcon, colorIcon, colorText) {
+    if (typeIcon == 1) {
+        pathIcon = 'http://sngtrans.com.ua/img/google/new/lorry_go.png';
+        anchorIcon = [8, 16];
+    } else if (typeIcon == 2) {
+        pathIcon = 'http://sngtrans.com.ua/img/google/new/lorry_delete.png';
+        anchorIcon = [8, 16];
+    } else if (typeIcon == 3) {
+        pathIcon = 'http://sngtrans.com.ua/img/google/new/box_open.png';
+        anchorIcon = [8, 16];
+    } else if (typeIcon == 4) {
+        pathIcon = 'http://sngtrans.com.ua/img/'+colorIcon+'/flag.png';
+        anchorIcon = [8, 16];
+    } else if (typeIcon == 5) {
+        pathIcon = 'http://sngtrans.com.ua/img/google/new/stop_blue.png';
+        anchorIcon = [15, 13];
+    } else if (typeIcon == 6) {
+        pathIcon = 'http://sngtrans.com.ua/img/google/new/stop_red.png';
+        anchorIcon = [8, 13];
+    } else if (typeIcon == 7) {
+        pathIcon = 'http://sngtrans.com.ua/img/google/new/car_sngt.png';
+        anchorIcon = [15, 16];
+    } else if (typeIcon == 8) {
+        pathIcon = 'http://sngtrans.com.ua/img/google/new/single_blue.png';
+        anchorIcon = [0, 26];
+    } else if (typeIcon == 9) {
+        fileMarker = '/blank.png';
+        if (numberIcon > 0) { 
+            fileMarker = '/marker'+(numberIcon%100)+'.png';
+        };
+        pathIcon = 'http://sngtrans.com.ua/img/white'+fileMarker;
+        anchorIcon = [15, 13];
+    } else if (typeIcon == 10) {
+        pathIcon = 'http://sngtrans.com.ua/img/google/new/big_question.png';
+        anchorIcon = [15, 26];
+    } else if (typeIcon == 11) {
+        paranDiv = {
+            textColor: "#000000",
+            backColor: "#ffffff",
+            backColor2: "#ffffff",          
+            text: numberIcon,    
+            width: 10*numberIcon.length,
+            height: 16,
+            status: 2
+        };
+        return getDivIcon(paranDiv);
+    } else if (typeIcon == 12) {
+        var newDiv = L.divIcon({
+            iconSize    :   [8, 8],
+            className   :   "leaflet-marker-track-points",
+            iconAnchor  :   [4, 4]
+        });
+        return newDiv;
+    } else if (typeIcon == 13) {
+        pathIcon = 'http://sngtrans.com.ua/img/depot.png';
+        anchorIcon = [0, 16];
+    } else if (typeIcon == 14) {
+        colorIcon = colorIcon || '#ffffff';
+        colorText = colorText || '#000000';
+        numberIcon += '';
+        paramDiv = {
+            textColor: colorText,
+            backColor: colorIcon,
+            text: numberIcon,    
+            width: (10+5*numberIcon.length),
+            height: 16,
+            status: 1
+        };
+        return getDivIcon(paramDiv);
+    } else {
+        fileMarker = '/blank.png';
+        if (numberIcon > 0) { 
+            fileMarker = '/marker'+(numberIcon%100)+'.png';
+        };
+        pathIcon = 'http://sngtrans.com.ua/img/'+colorIcon+fileMarker;
+        anchorIcon = [0, 13];
+    };
+    return new L.icon({iconUrl: pathIcon, iconAnchor: anchorIcon});
+}
+
+
+// 'rgb\((\d+), (\d+), (\d+)\)'            {r : \1, g : \2, b : \3}
+c=[{r : 181, g : 110, b : 80}, {r : 48, g : 169, b : 3}, {r : 61, g : 8, b : 196}, {r : 209, g : 100, b : 61}, {r : 25, g : 162, b : 96}, {r : 99, g : 105, b : 176}, {r : 163, g : 26, b : 86}, {r : 97, g : 160, b : 107}, {r : 2, g : 41, b : 185}, {r : 199, g : 33, b : 3}, {r : 20, g : 163, b : 3}, {r : 17, g : 50, b : 197}, {r : 199, g : 67, b : 27}, {r : 57, g : 207, b : 86}, {r : 94, g : 90, b : 169}, {r : 171, g : 36, b : 58}, {r : 33, g : 169, b : 59}, {r : 72, g : 9, b : 185}, {r : 164, g : 48, b : 84}, {r : 65, g : 205, b : 99}, {r : 6, g : 88, b : 174}, {r : 170, g : 78, b : 53}, {r : 57, g : 194, b : 105}, {r : 106, g : 33, b : 195}, {r : 204, g : 77, b : 65}, {r : 34, g : 196, b : 58}, {r : 47, g : 53, b : 201}, {r : 197, g : 19, b : 62}, {r : 96, g : 200, b : 32}, {r : 71, g : 101, b : 179}, {r : 174, g : 4, b : 106}, {r : 95, g : 163, b : 41}, {r : 28, g : 76, b : 182}, {r : 161, g : 22, b : 86}, {r : 51, g : 182, b : 34}, {r : 81, g : 10, b : 190}, {r : 208, g : 16, b : 52}, {r : 43, g : 205, b : 95}, {r : 61, g : 1, b : 200}, {r : 180, g : 71, b : 7}, {r : 28, g : 194, b : 6}, {r : 42, g : 88, b : 208}, {r : 165, g : 55, b : 67}, {r : 92, g : 182, b : 12}, {r : 109, g : 34, b : 188}, {r : 199, g : 29, b : 70}, {r : 13, g : 203, b : 108}, {r : 2, g : 47, b : 205}, {r : 175, g : 53, b : 28}, {r : 55, g : 166, b : 26}, {r : 75, g : 36, b : 162}, {r : 201, g : 91, b : 3}, {r : 94, g : 194, b : 62}, {r : 47, g : 22, b : 178}, {r : 164, g : 77, b : 107}, {r : 109, g : 164, b : 37}, {r : 10, g : 68, b : 171}, {r : 178, g : 92, b : 50}, {r : 102, g : 201, b : 18}, {r : 34, g : 86, b : 169}, {r : 202, g : 95, b : 20}, {r : 4, g : 187, b : 54}, {r : 61, g : 54, b : 180}, {r : 179, g : 85, b : 63}, {r : 25, g : 204, b : 4}, {r : 17, g : 22, b : 166}, {r : 187, g : 83, b : 95}, {r : 29, g : 180, b : 5}, {r : 33, g : 45, b : 201}, {r : 207, g : 73, b : 96}]
+
+function ColCars(d)
+{
+    dd=d
+    $.each(dd.chain_groups,function(i){
+        $.each(this,function(j){
+            a.markers[this].marker.setOpacity(1);
+            a.markers[this].marker.setIcon(getIcon(i+1, 14, '#'+IColor(c[i],'HEX'), (Math.max(c[0].r, c[0].g, c[0].b)+Math.min(c[0].r, c[0].g, c[0].b))/2>128?'#fff':'#000'));
+        });
+    });
+    $('#log_slider').attr('max', dd.rm_log ? dd.rm_log.length - 1 : dd.conc_log ? dd.conc_log.length - 1 : 0);
+}
+
+function log(i){
+    ColCars(dd);
+    if(dd.rm_log)
+    {
+        for(var j=0;j<i;j++)
+             a.markers[dd.rm_log[j].first.first].marker.setOpacity(0.1);
+        a.markers[dd.rm_log[i].first.first].marker.setIcon(getIcon(dd.rm_log[i].first.second, 14, '#000', '#fff'));
+        var text=i+': '+dd.rm_log[i].first.first+' deleted from '+dd.rm_log[i].first.second;
+        $.each(dd.rm_log[i].second,function(){
+            a.markers[this[0]].marker.setTitle('metric='+this[1]+"\nself="+this[2]+"\nother="+this[3]);
+            if(dd.rm_log[i].first.first==this[0])
+                text+=' with metric='+this[1]+', self='+this[2]+', other='+this[3];
+        });
+        $('.box-label').html(text);
+        if($('#log_panner').is(':checked')) OSRM.G.map.panTo(a.markers[dd.rm_log[i].first.first].position);
+    }
+    else if(dd.conc_log)
+    {
+        titles=[];
+        for(var j=0;j<i;j++)
+            for(var k in dd.conc_log[j].first.first)
+                if(titles[dd.conc_log[j].first.first[k]])
+                    titles[dd.conc_log[j].first.first[k]] += j+': '+dd.conc_log[j].first.second+"\n";       
+                else     
+                    titles[dd.conc_log[j].first.first[k]] = j+': '+dd.conc_log[j].first.second+"\n";    
+        for(var j=i+1;j<dd.conc_log.length;j++)
+            for(var k in dd.conc_log[j].first.first)
+                a.markers[dd.conc_log[j].first.first[k]].marker.setIcon(getIcon(0, 14, '#fff', '#fff'));
+        for(var k in dd.conc_log[i].first.first)        {
+            a.markers[dd.conc_log[i].first.first[k]].marker.setIcon(getIcon(dd.conc_log[i].first.second, 14, dd.conc_log[i].second.first ? '#000' : '#fff', dd.conc_log[i].second.first ? '#fff' : '#000'));
+        }
+        $.each(a.coords,function(){
+            a.markers[this.index].marker.setTitle(titles[this.index])
+        })
+        $('.box-label').html(i+': '+dd.conc_log[i].second.second);
+        if($('#log_panner').is(':checked')) OSRM.G.map.panTo(a.markers[dd.conc_log[i].first.first[0]].position);
+    }
+}
+
+inf=Infinity
