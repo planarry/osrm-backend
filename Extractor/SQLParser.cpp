@@ -116,12 +116,12 @@ bool SQLParser::Parse() {
                 if (row["id"].as<unsigned>() != prev_way_id) {
                     if (prev_way_id != UINT_MAX) {
                         ParseWayInLua(way, lua_state);
-                        if (way.speed > 0) {
-                            if (temp_speed > 0)
-                                way.speed = temp_speed;
-                            if (temp_backward_speed > 0)
-                                way.backward_speed = temp_backward_speed;
-                        }
+//                        if (way.speed > 0) {
+//                            if (temp_speed > 0)
+//                                way.speed = temp_speed;
+//                            if (temp_backward_speed > 0)
+//                                way.backward_speed = temp_backward_speed;
+//                        }
                         extractor_callbacks->ProcessWay(way);
                         progress.printIncrement();
                         way = ExtractionWay();
@@ -176,7 +176,10 @@ bool SQLParser::Parse() {
                     "FROM current_relations r "
                     "WHERE (SELECT 1 FROM current_relation_members"
                     " WHERE relation_id = r.id"
-                    " AND member_role='from' AND member_type='Way' LIMIT 1) IS NOT NULL";
+                    " AND member_role='from' AND member_type='Way' LIMIT 1) IS NOT NULL"
+                    " AND (SELECT 1 FROM current_relation_tags"
+                    " WHERE relation_id = r.id"
+                    " AND k='type' AND v='restriction' LIMIT 1) IS NOT NULL";
             pqxx::icursorstream cur(w, query, "cur", PACK_SIZE);
             while (cur >> res)
                 for (const auto &row : res) {
