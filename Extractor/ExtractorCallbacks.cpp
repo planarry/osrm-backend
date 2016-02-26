@@ -115,6 +115,8 @@ void ExtractorCallbacks::ProcessWay(ExtractionWay &parsed_way)
     const bool split_edge =
         (parsed_way.backward_speed > 0) && (parsed_way.speed != parsed_way.backward_speed);
 
+    const bool to_split = parsed_way.keyVals.Find("split") == "yes";
+
     for (unsigned n = 0; n < (parsed_way.path.size() - 1); ++n)
     {
         external_memory.all_edges_list.push_back(InternalExtractorEdge(
@@ -129,7 +131,7 @@ void ExtractorCallbacks::ProcessWay(ExtractionWay &parsed_way)
             (0 < parsed_way.duration),
             parsed_way.isAccessRestricted,
             false,
-            split_edge,
+            split_edge || to_split,
             parsed_way.maxload,
             parsed_way.maxheight));
         external_memory.used_node_id_list.push_back(parsed_way.path[n]);

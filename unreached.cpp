@@ -117,11 +117,17 @@ NodeID findNextEdge(NodeID from, NodeID via, const std::vector<bool> &visited, b
 //        std::cout<<"AAAAAAAAAA!";
 //    }
     NodeID to, from_t, to_t;
+//    ImportEdge *e;
     if (!std::binary_search(barrier_node_list.begin(), barrier_node_list.end(), via)) {     //checking for barrier
         for (unsigned int i: nodes[via]) {                                                  //iterating node edges
+//            e = &edge_list[i];
+//            if (internal_to_external_node_map[e->source].node_id == 611731698 ||
+//                    internal_to_external_node_map[e->target].node_id == 611731698) {
+//                ImportEdge *e = &edge_list[i];
+//            }
             if (visited[i]) continue;                                                       //if visited
             if (edge_list[i].access_restricted) continue;                                   //if restricted
-            next_source = (via == edge_list[i].source);                       //checking mutual point
+            next_source = (via == edge_list[i].source);                                     //checking mutual point
             if (backward) {
                 direction = (!next_source) ? edge_list[i].forward : edge_list[i].backward;       //checking direction
             } else {
