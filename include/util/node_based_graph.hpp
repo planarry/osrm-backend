@@ -18,7 +18,7 @@ namespace util
 struct NodeBasedEdgeData
 {
     NodeBasedEdgeData()
-        : distance(INVALID_EDGE_WEIGHT), edge_id(SPECIAL_NODEID),
+        : distance(INVALID_EDGE_WEIGHT), length(INVALID_EDGE_WEIGHT), edge_id(SPECIAL_NODEID),
           name_id(std::numeric_limits<unsigned>::max()), access_restricted(false), reversed(false),
           roundabout(false), travel_mode(TRAVEL_MODE_INACCESSIBLE),
           lane_description_id(INVALID_LANE_DESCRIPTIONID)
@@ -26,6 +26,7 @@ struct NodeBasedEdgeData
     }
 
     NodeBasedEdgeData(int distance,
+                      int length,
                       unsigned edge_id,
                       unsigned name_id,
                       bool access_restricted,
@@ -34,13 +35,13 @@ struct NodeBasedEdgeData
                       bool startpoint,
                       extractor::TravelMode travel_mode,
                       const LaneDescriptionID lane_description_id)
-        : distance(distance), edge_id(edge_id), name_id(name_id),
+        : distance(distance), length(length), edge_id(edge_id), name_id(name_id),
           access_restricted(access_restricted), reversed(reversed), roundabout(roundabout),
           startpoint(startpoint), travel_mode(travel_mode), lane_description_id(lane_description_id)
     {
     }
 
-    int distance;
+    int distance, length;
     unsigned edge_id;
     unsigned name_id;
     bool access_restricted : 1;
@@ -80,6 +81,8 @@ NodeBasedDynamicGraphFromEdges(NodeID number_of_nodes,
            const extractor::NodeBasedEdge &input_edge) {
             output_edge.data.distance = static_cast<int>(input_edge.weight);
             BOOST_ASSERT(output_edge.data.distance > 0);
+            output_edge.data.length = static_cast<int>(input_edge.length);
+            BOOST_ASSERT(output_edge.data.length > 0);
 
             output_edge.data.roundabout = input_edge.roundabout;
             output_edge.data.name_id = input_edge.name_id;

@@ -99,7 +99,9 @@ void CompressedEdgeContainer::CompressEdge(const EdgeID edge_id_1,
                                            const NodeID via_node_id,
                                            const NodeID target_node_id,
                                            const EdgeWeight weight1,
-                                           const EdgeWeight weight2)
+                                           const EdgeWeight weight2,
+                                           const uint32_t length1,
+                                           const uint32_t length2)
 {
     // remove super-trivial geometries
     BOOST_ASSERT(SPECIAL_EDGEID != edge_id_1);
@@ -108,6 +110,8 @@ void CompressedEdgeContainer::CompressEdge(const EdgeID edge_id_1,
     BOOST_ASSERT(SPECIAL_NODEID != target_node_id);
     BOOST_ASSERT(INVALID_EDGE_WEIGHT != weight1);
     BOOST_ASSERT(INVALID_EDGE_WEIGHT != weight2);
+    BOOST_ASSERT(INVALID_EDGE_WEIGHT != length1);
+    BOOST_ASSERT(INVALID_EDGE_WEIGHT != length2);
 
     // append list of removed edge_id plus via node to surviving edge id:
     // <surv_1, .. , surv_n, via_node_id, rem_1, .. rem_n
@@ -143,7 +147,7 @@ void CompressedEdgeContainer::CompressEdge(const EdgeID edge_id_1,
     // weight1 is the distance to the (currently) last coordinate in the bucket
     if (edge_bucket_list1.empty())
     {
-        edge_bucket_list1.emplace_back(CompressedEdge{via_node_id, weight1});
+        edge_bucket_list1.emplace_back(CompressedEdge{via_node_id, weight1, length1});
     }
 
     BOOST_ASSERT(0 < edge_bucket_list1.size());
@@ -174,18 +178,20 @@ void CompressedEdgeContainer::CompressEdge(const EdgeID edge_id_1,
     else
     {
         // we are certain that the second edge is atomic.
-        edge_bucket_list1.emplace_back(CompressedEdge{target_node_id, weight2});
+        edge_bucket_list1.emplace_back(CompressedEdge{target_node_id, weight2, length2});
     }
 }
 
 void CompressedEdgeContainer::AddUncompressedEdge(const EdgeID edge_id,
                                                   const NodeID target_node_id,
-                                                  const EdgeWeight weight)
+                                                  const EdgeWeight weight,
+                                                  const uint32_t length)
 {
     // remove super-trivial geometries
     BOOST_ASSERT(SPECIAL_EDGEID != edge_id);
     BOOST_ASSERT(SPECIAL_NODEID != target_node_id);
     BOOST_ASSERT(INVALID_EDGE_WEIGHT != weight);
+    BOOST_ASSERT(INVALID_EDGE_WEIGHT != length);
 
     // Add via node id. List is created if it does not exist
     if (!HasEntryForID(edge_id))
@@ -215,7 +221,7 @@ void CompressedEdgeContainer::AddUncompressedEdge(const EdgeID edge_id,
     // Don't re-add this if it's already in there.
     if (edge_bucket_list.empty())
     {
-        edge_bucket_list.emplace_back(CompressedEdge{target_node_id, weight});
+        edge_bucket_list.emplace_back(CompressedEdge{target_node_id, weight, length});
     }
 }
 
