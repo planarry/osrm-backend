@@ -238,12 +238,14 @@ namespace osrm {
                 util::DeallocatingVector<EdgeBasedEdge> edge_based_edge_list;
                 std::vector<bool> node_is_startpoint;
                 std::vector<EdgeWeight> edge_based_node_weights;
+                std::vector<uint32_t> edge_based_node_length;
                 std::vector<QueryNode> internal_to_external_node_map;
                 auto graph_size = BuildEdgeExpandedGraph(scripting_environment,
                                                          internal_to_external_node_map,
                                                          edge_based_node_list,
                                                          node_is_startpoint,
                                                          edge_based_node_weights,
+                                                         edge_based_node_length,
                                                          edge_based_edge_list,
                                                          config.intersection_class_data_output_path);
 
@@ -255,6 +257,7 @@ namespace osrm {
                 util::SimpleLogger().Write() << "Saving edge-based node weights to file.";
                 TIMER_START(timer_write_node_weights);
                 util::serializeVector(config.edge_based_node_weights_output_path, edge_based_node_weights);
+                util::serializeVector(config.edge_based_node_length_output_path, edge_based_node_length);
                 TIMER_STOP(timer_write_node_weights);
                 util::SimpleLogger().Write() << "Done writing. (" << TIMER_SEC(timer_write_node_weights)
                                              << ")";
@@ -426,6 +429,7 @@ namespace osrm {
                                           std::vector<EdgeBasedNode> &node_based_edge_list,
                                           std::vector<bool> &node_is_startpoint,
                                           std::vector<EdgeWeight> &edge_based_node_weights,
+                                          std::vector<uint32_t> &edge_based_node_length,
                                           util::DeallocatingVector<EdgeBasedEdge> &edge_based_edge_list,
                                           const std::string &intersection_class_output_file) {
             std::unordered_set<NodeID> barrier_nodes;
@@ -479,6 +483,7 @@ namespace osrm {
             edge_based_graph_factory.GetEdgeBasedNodes(node_based_edge_list);
             edge_based_graph_factory.GetStartPointMarkers(node_is_startpoint);
             edge_based_graph_factory.GetEdgeBasedNodeWeights(edge_based_node_weights);
+            edge_based_graph_factory.GetEdgeBasedNodeLength(edge_based_node_length);
             auto max_edge_id = edge_based_graph_factory.GetHighestEdgeID();
 
             const std::size_t number_of_node_based_nodes = node_based_graph->GetNumberOfNodes();

@@ -89,6 +89,10 @@ void EdgeBasedGraphFactory::GetEdgeBasedNodeWeights(std::vector<EdgeWeight> &out
     swap(m_edge_based_node_weights, output_node_weights);
 }
 
+        void EdgeBasedGraphFactory::GetEdgeBasedNodeLength(std::vector<uint32_t> &output_node_length) {
+            std::swap(m_edge_based_node_length, output_node_length);
+        }
+
 EdgeID EdgeBasedGraphFactory::GetHighestEdgeID() { return m_max_edge_id; }
 
 void EdgeBasedGraphFactory::InsertEdgeBasedNode(const NodeID node_u, const NodeID node_v)
@@ -114,8 +118,10 @@ void EdgeBasedGraphFactory::InsertEdgeBasedNode(const NodeID node_u, const NodeI
         return;
     }
 
-    if (forward_data.edge_id != SPECIAL_NODEID && reverse_data.edge_id == SPECIAL_NODEID)
+    if (forward_data.edge_id != SPECIAL_NODEID && reverse_data.edge_id == SPECIAL_NODEID) {
         m_edge_based_node_weights[forward_data.edge_id] = INVALID_EDGE_WEIGHT;
+        m_edge_based_node_length[forward_data.edge_id] = UINT32_MAX;
+    }
 
     BOOST_ASSERT(m_compressed_edge_container.HasEntryForID(edge_id_1) ==
                  m_compressed_edge_container.HasEntryForID(edge_id_2));
@@ -197,6 +203,7 @@ void EdgeBasedGraphFactory::Run(ScriptingEnvironment &scripting_environment,
 
     TIMER_START(generate_nodes);
     m_edge_based_node_weights.reserve(m_max_edge_id + 1);
+    m_edge_based_node_length.reserve(m_max_edge_id + 1);
     GenerateEdgeExpandedNodes();
     TIMER_STOP(generate_nodes);
 
@@ -240,6 +247,7 @@ unsigned EdgeBasedGraphFactory::RenumberEdges()
             // of the street takes longer than the loop
             m_edge_based_node_weights.push_back(edge_data.distance +
                                                 profile_properties.u_turn_penalty);
+            m_edge_based_node_length.push_back((uint32_t)edge_data.length);
 
             BOOST_ASSERT(numbered_edges_count < m_node_based_graph->GetNumberOfEdges());
             edge_data.edge_id = numbered_edges_count;
@@ -293,6 +301,7 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedNodes()
 
     BOOST_ASSERT(m_edge_based_node_list.size() == m_edge_based_node_is_startpoint.size());
     BOOST_ASSERT(m_max_edge_id + 1 == m_edge_based_node_weights.size());
+    BOOST_ASSERT(m_max_edge_id + 1 == m_edge_based_node_length.size());
 
     util::SimpleLogger().Write() << "Generated " << m_edge_based_node_list.size()
                                  << " nodes in edge-expanded graph";
@@ -426,6 +435,7 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
 
                 // the following is the core of the loop.
                 unsigned distance = edge_data1.distance;
+                uint32_t length = (uint32_t)edge_data1.length;
                 if (m_traffic_lights.find(node_v) != m_traffic_lights.end())
                 {
                     distance += profile_properties.traffic_signal_penalty;
@@ -467,6 +477,7 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
                                                     edge_data2.edge_id,
                                                     m_edge_based_edge_list.size(),
                                                     distance,
+                                                    length,
                                                     true,
                                                     false);
 

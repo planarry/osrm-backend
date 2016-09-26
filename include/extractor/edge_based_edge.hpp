@@ -20,6 +20,7 @@ struct EdgeBasedEdge
                   const NodeID target,
                   const NodeID edge_id,
                   const EdgeWeight weight,
+                  const uint32_t length,
                   const bool forward,
                   const bool backward);
 
@@ -31,6 +32,7 @@ struct EdgeBasedEdge
     EdgeWeight weight : 30;
     bool forward : 1;
     bool backward : 1;
+    uint32_t length = 0;
 };
 
 // Impl.
@@ -43,7 +45,7 @@ inline EdgeBasedEdge::EdgeBasedEdge()
 template <class EdgeT>
 inline EdgeBasedEdge::EdgeBasedEdge(const EdgeT &other)
     : source(other.source), target(other.target), edge_id(other.data.via),
-      weight(other.data.distance), forward(other.data.forward), backward(other.data.backward)
+      weight(other.data.distance), forward(other.data.forward), backward(other.data.backward), length(other.data.length)
 {
 }
 
@@ -51,10 +53,11 @@ inline EdgeBasedEdge::EdgeBasedEdge(const NodeID source,
                                     const NodeID target,
                                     const NodeID edge_id,
                                     const EdgeWeight weight,
+                                    const uint32_t length,
                                     const bool forward,
                                     const bool backward)
-    : source(source), target(target), edge_id(edge_id), weight(weight), forward(forward),
-      backward(backward)
+    : source(source), target(target), edge_id(edge_id), weight(weight), forward(forward), backward(backward),
+      length(length)
 {
 }
 
@@ -66,7 +69,10 @@ inline bool EdgeBasedEdge::operator<(const EdgeBasedEdge &other) const
         {
             if (weight == other.weight)
             {
-                return forward && backward && ((!other.forward) || (!other.backward));
+                if (length == other.length) {
+                    return forward && backward && ((!other.forward) || (!other.backward));
+                }
+                return length < other.length;
             }
             return weight < other.weight;
         }

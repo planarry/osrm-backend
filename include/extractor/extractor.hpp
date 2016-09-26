@@ -58,12 +58,13 @@ class Extractor
 
     std::pair<std::size_t, EdgeID>
     BuildEdgeExpandedGraph(ScriptingEnvironment &scripting_environment,
-                           std::vector<QueryNode> &internal_to_external_node_map,
-                           std::vector<EdgeBasedNode> &node_based_edge_list,
-                           std::vector<bool> &node_is_startpoint,
-                           std::vector<EdgeWeight> &edge_based_node_weights,
-                           util::DeallocatingVector<EdgeBasedEdge> &edge_based_edge_list,
-                           const std::string &intersection_class_output_file);
+                               std::vector<QueryNode> &internal_to_external_node_map,
+                               std::vector<EdgeBasedNode> &node_based_edge_list,
+                               std::vector<bool> &node_is_startpoint,
+                               std::vector<EdgeWeight> &edge_based_node_weights,
+                               std::vector<uint32_t> &edge_based_node_length,
+                               util::DeallocatingVector<EdgeBasedEdge> &edge_based_edge_list,
+                               const std::string &intersection_class_output_file);
     void WriteProfileProperties(const std::string &output_path,
                                 const ProfileProperties &properties) const;
     void WriteNodeMapping(const std::vector<QueryNode> &internal_to_external_node_map);
