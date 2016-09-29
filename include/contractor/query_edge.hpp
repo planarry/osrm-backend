@@ -21,6 +21,7 @@ struct QueryEdge
         template <class OtherT> EdgeData(const OtherT &other)
         {
             distance = other.distance;
+            length = other.length;
             shortcut = other.shortcut;
             id = other.id;
             forward = other.forward;
@@ -31,6 +32,7 @@ struct QueryEdge
         int distance : 30;
         bool forward : 1;
         bool backward : 1;
+        uint32_t length = 0;
     } data;
 
     QueryEdge() : source(SPECIAL_NODEID), target(SPECIAL_NODEID) {}

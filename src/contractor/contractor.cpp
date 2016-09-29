@@ -137,11 +137,24 @@ int Contractor::Run()
         throw util::exception("Failed reading node weights.");
     }
 
+    util::SimpleLogger().Write() << "Reading node length.";
+    std::vector<uint32_t > node_length;
+    std::string length_file_name = config.osrm_input_path.string() + ".enl";
+    if (util::deserializeVector(length_file_name, node_length))
+    {
+        util::SimpleLogger().Write() << "Done reading node length.";
+    }
+    else
+    {
+        throw util::exception("Failed reading node length.");
+    }
+
     util::DeallocatingVector<QueryEdge> contracted_edge_list;
     ContractGraph(max_edge_id,
                   edge_based_edge_list,
                   contracted_edge_list,
                   std::move(node_weights),
+                  std::move(node_length),
                   is_core_node,
                   node_levels);
     TIMER_STOP(contraction);
@@ -1006,19 +1019,19 @@ Contractor::WriteContractedGraph(unsigned max_node_id,
 /**
  \brief Build contracted graph.
  */
-void Contractor::ContractGraph(
-    const EdgeID max_edge_id,
-    util::DeallocatingVector<extractor::EdgeBasedEdge> &edge_based_edge_list,
-    util::DeallocatingVector<QueryEdge> &contracted_edge_list,
-    std::vector<EdgeWeight> &&node_weights,
-    std::vector<bool> &is_core_node,
-    std::vector<float> &inout_node_levels) const
+        void Contractor::ContractGraph(const EdgeID max_edge_id,
+                                       util::DeallocatingVector<extractor::EdgeBasedEdge> &edge_based_edge_list,
+                                       util::DeallocatingVector<QueryEdge> &contracted_edge_list,
+                                       std::vector<EdgeWeight> &&node_weights,
+                                       std::vector<uint32_t> &&node_length,
+                                       std::vector<bool> &is_core_node,
+                                       std::vector<float> &inout_node_levels) const
 {
     std::vector<float> node_levels;
     node_levels.swap(inout_node_levels);
 
-    GraphContractor graph_contractor(
-        max_edge_id + 1, edge_based_edge_list, std::move(node_levels), std::move(node_weights));
+    GraphContractor graph_contractor(max_edge_id + 1, edge_based_edge_list, std::move(node_levels),
+                                     std::move(node_weights), std::move(node_length));
     graph_contractor.Run(config.core_factor);
     graph_contractor.GetEdges(contracted_edge_list);
     graph_contractor.GetCoreMarker(is_core_node);

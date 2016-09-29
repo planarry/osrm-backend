@@ -59,10 +59,11 @@ class Contractor
     int Run();
 
   protected:
-    void ContractGraph(const unsigned max_edge_id,
+    void ContractGraph(const EdgeID max_edge_id,
                        util::DeallocatingVector<extractor::EdgeBasedEdge> &edge_based_edge_list,
                        util::DeallocatingVector<QueryEdge> &contracted_edge_list,
                        std::vector<EdgeWeight> &&node_weights,
+                       std::vector<uint32_t> &&node_length,
                        std::vector<bool> &is_core_node,
                        std::vector<float> &inout_node_levels) const;
     void WriteCoreNodeMarker(std::vector<bool> &&is_core_node) const;
