@@ -371,17 +371,22 @@ template <typename RTreeT, typename DataFacadeT> class GeospatialQuery
 
         int forward_offset = 0, forward_weight = 0;
         int reverse_offset = 0, reverse_weight = 0;
+        int forward_length = 0, reverse_length = 0, forward_off_l = 0, reverse_off_l = 0;
 
         if (data.forward_packed_geometry_id != SPECIAL_EDGEID)
         {
             std::vector<EdgeWeight> forward_weight_vector;
             datafacade.GetUncompressedWeights(data.forward_packed_geometry_id,
                                               forward_weight_vector);
+            std::vector<EdgeLength> forward_length_vector;
+            datafacade.GetUncompressedLength(data.forward_packed_geometry_id, forward_length_vector);
             for (std::size_t i = 0; i < data.fwd_segment_position; i++)
             {
                 forward_offset += forward_weight_vector[i];
+                forward_off_l += forward_length_vector[i];
             }
             forward_weight = forward_weight_vector[data.fwd_segment_position];
+            forward_length = forward_length_vector[data.fwd_segment_position];
         }
 
         if (data.reverse_packed_geometry_id != SPECIAL_EDGEID)
@@ -389,6 +394,8 @@ template <typename RTreeT, typename DataFacadeT> class GeospatialQuery
             std::vector<EdgeWeight> reverse_weight_vector;
             datafacade.GetUncompressedWeights(data.reverse_packed_geometry_id,
                                               reverse_weight_vector);
+            std::vector<EdgeLength> reverse_length_vector;
+            datafacade.GetUncompressedLength(data.reverse_packed_geometry_id, reverse_length_vector);
 
             BOOST_ASSERT(data.fwd_segment_position < reverse_weight_vector.size());
 
@@ -397,20 +404,29 @@ template <typename RTreeT, typename DataFacadeT> class GeospatialQuery
                  i++)
             {
                 reverse_offset += reverse_weight_vector[i];
+                reverse_off_l += reverse_length_vector[i];
             }
             reverse_weight =
                 reverse_weight_vector[reverse_weight_vector.size() - data.fwd_segment_position - 1];
+            reverse_length = reverse_length_vector[reverse_length_vector.size() - data.fwd_segment_position - 1];
         }
 
         ratio = std::min(1.0, std::max(0.0, ratio));
         if (data.forward_segment_id.id != SPECIAL_SEGMENTID)
         {
             forward_weight *= ratio;
+            forward_length *= ratio;
         }
         if (data.reverse_segment_id.id != SPECIAL_SEGMENTID)
         {
             reverse_weight *= 1.0 - ratio;
+            reverse_length *= 1.0 - ratio;
         }
+//        EdgeWeight perpendicular_weight = (EdgeWeight) (current_perpendicular_distance * 36.0 * 10.0);
+//        forward_length += (uint32_t) current_perpendicular_distance;
+//        reverse_length += (uint32_t) current_perpendicular_distance;
+//        forward_weight += perpendicular_weight;
+//        reverse_weight += perpendicular_weight;
 
         auto transformed = PhantomNodeWithDistance{PhantomNode{data,
                                                                forward_weight,
@@ -418,7 +434,11 @@ template <typename RTreeT, typename DataFacadeT> class GeospatialQuery
                                                                reverse_weight,
                                                                reverse_offset,
                                                                point_on_segment,
-                                                               input_coordinate},
+                                                               input_coordinate,
+                                                               forward_length,
+                                                               reverse_length,
+                                                               forward_off_l,
+                                                               reverse_off_l},
                                                    current_perpendicular_distance};
 
         return transformed;

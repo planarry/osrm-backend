@@ -61,7 +61,7 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
     auto snapped_phantoms = SnapPhantomNodes(GetPhantomNodes(params));
     auto result_table = distance_table(snapped_phantoms, params.sources, params.destinations);
 
-    if (result_table.empty())
+    if (result_table.first.empty())
     {
         return Error("NoTable", "No table found", result);
     }

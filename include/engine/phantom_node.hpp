@@ -91,10 +91,18 @@ struct PhantomNode
         return forward_offset + forward_weight;
     }
 
+    int GetForwardLengthPlusOffset() const {
+        return forward_length + forward_off_l;
+    }
+
     int GetReverseWeightPlusOffset() const
     {
         BOOST_ASSERT(reverse_segment_id.enabled);
         return reverse_offset + reverse_weight;
+    }
+
+    int GetReverseLengthPlusOffset() const {
+        return reverse_length + reverse_off_l;
     }
 
     bool IsBidirected() const { return forward_segment_id.enabled && reverse_segment_id.enabled; }
@@ -124,11 +132,16 @@ struct PhantomNode
                          int reverse_weight_,
                          int reverse_offset_,
                          const util::Coordinate location_,
-                         const util::Coordinate input_location_)
+                         const util::Coordinate input_location_,
+                         int f_l,
+                         int r_l,
+                         int f_o_l,
+                         int r_o_l)
         : forward_segment_id{other.forward_segment_id},
           reverse_segment_id{other.reverse_segment_id}, name_id{other.name_id},
           forward_weight{forward_weight_}, reverse_weight{reverse_weight_},
           forward_offset{forward_offset_}, reverse_offset{reverse_offset_},
+          forward_length{f_l}, reverse_length{r_l}, forward_off_l{f_o_l}, reverse_off_l{r_o_l},
           forward_packed_geometry_id{other.forward_packed_geometry_id},
           reverse_packed_geometry_id{other.reverse_packed_geometry_id},
           component{other.component.id, other.component.is_tiny}, location{location_},
@@ -145,6 +158,7 @@ struct PhantomNode
     int reverse_weight;
     int forward_offset;
     int reverse_offset;
+    int forward_length = 0, reverse_length = 0, forward_off_l = 0, reverse_off_l = 0;
     unsigned forward_packed_geometry_id;
     unsigned reverse_packed_geometry_id;
     struct ComponentType
@@ -163,7 +177,7 @@ struct PhantomNode
     extractor::TravelMode backward_travel_mode;
 };
 
-static_assert(sizeof(PhantomNode) == 60, "PhantomNode has more padding then expected");
+static_assert(sizeof(PhantomNode) == 76, "PhantomNode has more padding then expected");             // original size 60
 
 using PhantomNodePair = std::pair<PhantomNode, PhantomNode>;
 

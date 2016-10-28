@@ -178,7 +178,7 @@ namespace osrm {
                                                           resulting_restrictions);
 
                     number_of_nodes += resulting_nodes.size();
-                    // put parsed objects thru extractor callbacks
+                    // put parsed objects throu extractor callbacks
                     for (const auto &result : resulting_nodes) {
                         extractor_callbacks->ProcessNode(
                                 static_cast<const osmium::Node &>(*(osm_elements[result.first])),
@@ -238,7 +238,7 @@ namespace osrm {
                 util::DeallocatingVector<EdgeBasedEdge> edge_based_edge_list;
                 std::vector<bool> node_is_startpoint;
                 std::vector<EdgeWeight> edge_based_node_weights;
-                std::vector<uint32_t> edge_based_node_length;
+                std::vector<EdgeLength> edge_based_node_length;
                 std::vector<QueryNode> internal_to_external_node_map;
                 auto graph_size = BuildEdgeExpandedGraph(scripting_environment,
                                                          internal_to_external_node_map,
@@ -429,7 +429,7 @@ namespace osrm {
                                           std::vector<EdgeBasedNode> &node_based_edge_list,
                                           std::vector<bool> &node_is_startpoint,
                                           std::vector<EdgeWeight> &edge_based_node_weights,
-                                          std::vector<uint32_t> &edge_based_node_length,
+                                          std::vector<EdgeLength> &edge_based_node_length,
                                           util::DeallocatingVector<EdgeBasedEdge> &edge_based_edge_list,
                                           const std::string &intersection_class_output_file) {
             std::unordered_set<NodeID> barrier_nodes;

@@ -20,7 +20,7 @@ struct EdgeBasedEdge
                   const NodeID target,
                   const NodeID edge_id,
                   const EdgeWeight weight,
-                  const uint32_t length,
+                  const EdgeLength length,
                   const bool forward,
                   const bool backward);
 
@@ -32,7 +32,7 @@ struct EdgeBasedEdge
     EdgeWeight weight : 30;
     bool forward : 1;
     bool backward : 1;
-    uint32_t length = 0;
+    EdgeLength length = 0;
 };
 
 // Impl.
@@ -53,7 +53,7 @@ inline EdgeBasedEdge::EdgeBasedEdge(const NodeID source,
                                     const NodeID target,
                                     const NodeID edge_id,
                                     const EdgeWeight weight,
-                                    const uint32_t length,
+                                    const EdgeLength length,
                                     const bool forward,
                                     const bool backward)
     : source(source), target(target), edge_id(edge_id), weight(weight), forward(forward), backward(backward),

@@ -42,7 +42,7 @@ class GraphContractor
         {
         }
         ContractorEdgeData(unsigned distance,
-                           uint32_t length,
+                           unsigned length,
                            unsigned original_edges,
                            unsigned id,
                            bool shortcut,
@@ -54,7 +54,7 @@ class GraphContractor
         {
         }
         unsigned distance;
-        uint32_t length = 0;
+        unsigned length = 0;
         unsigned id;
         unsigned originalEdges : 28;
         bool shortcut : 1;
@@ -147,7 +147,7 @@ class GraphContractor
                     ContainerT &input_edge_list,
                     std::vector<float> &&node_levels_,
                     std::vector<EdgeWeight> &&node_weights_,
-                    std::vector<uint32_t> &&node_length_)
+                    std::vector<EdgeLength> &&node_length_)
         : node_levels(std::move(node_levels_)), node_weights(std::move(node_weights_)),
           node_length(std::move(node_length_))
     {
@@ -217,7 +217,7 @@ class GraphContractor
             forward_edge.data.id = reverse_edge.data.id = id;
             forward_edge.data.originalEdges = reverse_edge.data.originalEdges = 1;
             forward_edge.data.distance = reverse_edge.data.distance = INVALID_EDGE_WEIGHT;
-            forward_edge.data.length = reverse_edge.data.length = UINT32_MAX;
+            forward_edge.data.length = reverse_edge.data.length = INVALID_EDGE_LENGTH;
             // remove parallel edges
             while (i < edges.size() && edges[i].source == source && edges[i].target == target)
             {
@@ -239,19 +239,22 @@ class GraphContractor
             if (forward_edge.data.distance == reverse_edge.data.distance &&
                     forward_edge.data.length == reverse_edge.data.length)
             {
-                if ((int)forward_edge.data.distance != INVALID_EDGE_WEIGHT && forward_edge.data.length != UINT32_MAX)
+                if ((int)forward_edge.data.distance != INVALID_EDGE_WEIGHT
+                    && forward_edge.data.length != INVALID_EDGE_LENGTH)
                 {
                     forward_edge.data.backward = true;
                     edges[edge++] = forward_edge;
                 }
             }
             else
-            { // insert seperate edges
-                if (((int)forward_edge.data.distance) != INVALID_EDGE_WEIGHT && forward_edge.data.length != UINT32_MAX)
+            { // insert separate edges
+                if (((int)forward_edge.data.distance) != INVALID_EDGE_WEIGHT
+                    && forward_edge.data.length != INVALID_EDGE_LENGTH)
                 {
                     edges[edge++] = forward_edge;
                 }
-                if ((int)reverse_edge.data.distance != INVALID_EDGE_WEIGHT && reverse_edge.data.length != UINT32_MAX)
+                if ((int)reverse_edge.data.distance != INVALID_EDGE_WEIGHT
+                    && reverse_edge.data.length != INVALID_EDGE_LENGTH)
                 {
                     edges[edge++] = reverse_edge;
                 }
@@ -340,9 +343,9 @@ class GraphContractor
                                         static_cast<NodeID>(number_of_nodes * 0.65 * core_factor)))
             {
                 util::DeallocatingVector<ContractorEdge>
-                    new_edge_set; // this one is not explicitely
+                    new_edge_set; // this one is not explicitly
                                   // cleared since it goes out of
-                                  // scope anywa
+                                  // scope anyway
                 std::cout << " [flush " << number_of_contracted_nodes << " nodes] " << std::flush;
 
                 // Delete old heap data to free memory that we need for the coming operations
@@ -351,7 +354,7 @@ class GraphContractor
                 // Create new priority array
                 std::vector<float> new_node_priority(remaining_nodes.size());
                 std::vector<EdgeWeight> new_node_weights(remaining_nodes.size());
-                std::vector<uint32_t> new_node_length(remaining_nodes.size());
+                std::vector<EdgeLength> new_node_length(remaining_nodes.size());
                 // this map gives the old IDs from the new ones, necessary to get a consistent graph
                 // at the end of contraction
                 orig_node_id_from_new_node_id_map.resize(remaining_nodes.size());
@@ -663,7 +666,7 @@ class GraphContractor
                     new_edge.data.shortcut = data.shortcut;
                     if (!data.is_original_via_node_ID && !orig_node_id_from_new_node_id_map.empty())
                     {
-                        // tranlate the _node id_ of the shortcutted node
+                        // translate the _node id_ of the shortcutted node
                         new_edge.data.id = orig_node_id_from_new_node_id_map[data.id];
                     }
                     else
@@ -836,7 +839,7 @@ class GraphContractor
                     continue;
 
                 const EdgeWeight path_distance = in_data.distance + out_data.distance;
-                const uint32_t path_length = in_data.length + out_data.length;
+                const EdgeLength path_length = in_data.length + out_data.length;
                 if (target == source)
                 {
                     if (path_distance < node_weights[node])
@@ -917,7 +920,7 @@ class GraphContractor
                 if (target == node)
                     continue;
                 const int path_distance = in_data.distance + out_data.distance;
-                const uint32_t path_length = in_data.length + in_data.length;
+                const int path_length = in_data.length + out_data.length;
                 const int distance = heap.GetKey(target);
                 if (path_distance < distance)
                 {
@@ -1138,7 +1141,7 @@ class GraphContractor
     // During contraction, self-loops are checked against this node weight to ensure that necessary
     // self-loops are added.
     std::vector<EdgeWeight> node_weights;
-    std::vector<uint32_t> node_length;
+    std::vector<EdgeLength> node_length;
     std::vector<bool> is_core_node;
     util::XORFastHash<> fast_hash;
 };

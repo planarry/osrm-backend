@@ -138,7 +138,7 @@ int Contractor::Run()
     }
 
     util::SimpleLogger().Write() << "Reading node length.";
-    std::vector<uint32_t > node_length;
+    std::vector<EdgeLength> node_length;
     std::string length_file_name = config.osrm_input_path.string() + ".enl";
     if (util::deserializeVector(length_file_name, node_length))
     {
@@ -767,7 +767,7 @@ EdgeID Contractor::LoadEdgeExpandedGraph(
     while (edge_based_edge_ptr != edge_based_edge_last)
     {
         // Make a copy of the data from the memory map
-        extractor::EdgeBasedEdge inbuffer = *edge_based_edge_ptr;
+        extractor::EdgeBasedEdge inbuffer = *edge_based_edge_ptr;           // check length
         edge_based_edge_ptr++;
 
         if (update_edge_weights || update_turn_penalties)
@@ -1023,7 +1023,7 @@ Contractor::WriteContractedGraph(unsigned max_node_id,
                                        util::DeallocatingVector<extractor::EdgeBasedEdge> &edge_based_edge_list,
                                        util::DeallocatingVector<QueryEdge> &contracted_edge_list,
                                        std::vector<EdgeWeight> &&node_weights,
-                                       std::vector<uint32_t> &&node_length,
+                                       std::vector<EdgeLength> &&node_length,
                                        std::vector<bool> &is_core_node,
                                        std::vector<float> &inout_node_levels) const
 {

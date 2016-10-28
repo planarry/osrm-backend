@@ -199,10 +199,10 @@ void GraphCompressor::Compress(const std::unordered_set<NodeID> &barrier_nodes,
             // store compressed geometry in container
             geometry_compressor.CompressEdge(
                 forward_e1, forward_e2, node_v, node_w, forward_weight1, forward_weight2,
-                (uint32_t)forward_length1, (uint32_t)forward_length2);
+                forward_length1, forward_length2);
             geometry_compressor.CompressEdge(
                 reverse_e1, reverse_e2, node_v, node_u, reverse_weight1, reverse_weight2,
-                (uint32_t)reverse_length1, (uint32_t)reverse_length2);
+                reverse_length1, reverse_length2);
         }
     }
 
@@ -217,7 +217,7 @@ void GraphCompressor::Compress(const std::unordered_set<NodeID> &barrier_nodes,
         {
             const EdgeData &data = graph.GetEdgeData(edge_id);
             const NodeID target = graph.GetTarget(edge_id);
-            geometry_compressor.AddUncompressedEdge(edge_id, target, data.distance, (uint32_t)data.length);
+            geometry_compressor.AddUncompressedEdge(edge_id, target, data.distance, data.length);
         }
     }
 }

@@ -62,7 +62,7 @@ class Extractor
                                std::vector<EdgeBasedNode> &node_based_edge_list,
                                std::vector<bool> &node_is_startpoint,
                                std::vector<EdgeWeight> &edge_based_node_weights,
-                               std::vector<uint32_t> &edge_based_node_length,
+                               std::vector<EdgeLength> &edge_based_node_length,
                                util::DeallocatingVector<EdgeBasedEdge> &edge_based_edge_list,
                                const std::string &intersection_class_output_file);
     void WriteProfileProperties(const std::string &output_path,

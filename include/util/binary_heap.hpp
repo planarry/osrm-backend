@@ -10,6 +10,36 @@
 #include <unordered_map>
 #include <vector>
 
+typedef std::pair<int, int> p_int;
+
+inline bool operator<(p_int &f, p_int &s) {
+    return f.first < s.first;
+}
+
+inline bool operator>(p_int &f, p_int &s) {
+    return f.first > s.first;
+}
+
+inline bool operator<=(p_int &f, p_int &s) {
+    return f.first <= s.first;
+}
+
+inline bool operator>=(p_int &f, p_int &s) {
+    return f.first >= s.first;
+}
+
+namespace std {
+    template <>
+    p_int constexpr numeric_limits<p_int>::max() noexcept {
+        return make_pair(numeric_limits<int>::max(), numeric_limits<int>::max());
+    }
+
+    template <>
+    p_int constexpr numeric_limits<p_int>::min() noexcept {
+        return make_pair(numeric_limits<int>::min(), numeric_limits<int>::min());
+    }
+}
+
 namespace osrm
 {
 namespace util
@@ -290,6 +320,70 @@ class BinaryHeap
 #endif
     }
 };
+
+/*
+    template <typename NodeID,
+            typename Key,
+            typename Data,
+            typename IndexStorage>
+    class BinaryHeap<NodeID, Key, std::pair<int, int>, Data, IndexStorage> {
+    public:
+        explicit BinaryHeap(size_t maxID);
+
+        void Clear();
+        std::size_t Size() const;
+        bool Empty() const;
+        void Insert(NodeID node, std::pair<int, int> weight, const Data &data);
+        Data &GetData(NodeID node);
+        Data const &GetData(NodeID node) const;
+        std::pair<int, int> &GetKey(NodeID node);
+        bool WasRemoved(const NodeID node) const;
+        bool WasInserted(const NodeID node) const;
+        NodeID Min() const;
+        std::pair<int, int> const &MinKey() const;
+        NodeID DeleteMin();
+        void DeleteAll();
+        void DecreaseKey(NodeID node, std::pair<int, int> weight);
+
+    private:
+        BinaryHeap(const BinaryHeap &right);
+        void operator=(const BinaryHeap &right);
+
+        class HeapNode{};
+        struct HeapElement{};
+        std::vector<HeapNode> inserted_nodes;
+        std::vector<HeapElement> heap;
+        IndexStorage node_index;
+
+        void Downheap(Key key);
+        void Upheap(Key key);
+        void CheckHeap();
+    };
+
+    template <typename NodeID,
+            typename Key,
+            typename Data,
+            typename IndexStorage>
+    void BinaryHeap<NodeID, Key, std::pair<int, int>, Data, IndexStorage>::Clear() {
+        heap.resize(1);
+        inserted_nodes.clear();
+        heap[0].weight = std::make_pair(std::numeric_limits<int>::min(), 0);
+        node_index.Clear();
+    }
+
+    template <typename NodeID,
+            typename Key,
+            typename Data,
+            typename IndexStorage>
+    void BinaryHeap<NodeID, Key, std::pair<int, int>, Data, IndexStorage>::DeleteAll() {
+        auto iend = heap.end();
+        for (auto i = heap.begin() + 1; i != iend; ++i)
+        {
+            inserted_nodes[i->index].key = 0;
+        }
+        heap.resize(1);
+        heap[0].weight = std::make_pair(std::numeric_limits<int>::min(), 0);
+    } */
 }
 }
 

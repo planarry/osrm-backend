@@ -209,6 +209,23 @@ template <class DataFacadeT, class Derived> class BasicRoutingInterface
         return loop_weight;
     }
 
+    inline int GetLoopLength(NodeID node) const {
+        int loop_length = INVALID_EDGE_WEIGHT;
+        for (auto edge : facade->GetAdjacentEdgeRange(node))
+        {
+            const auto &data = facade->GetEdgeData(edge);
+            if (data.forward)
+            {
+                const NodeID to = facade->GetTarget(edge);
+                if (to == node)
+                {
+                    loop_length = std::min(loop_length, (int)data.length);
+                }
+            }
+        }
+        return loop_length;
+    }
+
     template <typename RandomIter>
     void UnpackPath(RandomIter packed_path_begin,
                     RandomIter packed_path_end,

@@ -47,7 +47,7 @@ return_code parseArguments(int argc, char *argv[], extractor::ExtractorConfig &e
         "small-component-size",
         boost::program_options::value<unsigned int>(&extractor_config.small_component_size)
             ->default_value(1000),
-        "Number of nodes required before a strongly-connected-componennt is considered big "
+        "Number of nodes required before a strongly-connected-component is considered big "
         "(affects nearest neighbor snapping)");
 
     // hidden options, will be allowed on command line, but will not be

@@ -67,6 +67,12 @@ class MockDataFacade final : public engine::datafacade::BaseDataFacade
         result_weights.resize(1);
         result_weights[0] = 1;
     }
+
+    virtual void GetUncompressedLength(const EdgeID /*id*/, std::vector<EdgeLength> &result_length) const override {
+        result_length.resize(1);
+        result_length[0] = 1;
+    }
+
     void GetUncompressedDatasources(const EdgeID /*id*/,
                                     std::vector<uint8_t> & /*data_sources*/) const override
     {

@@ -41,7 +41,7 @@ namespace osrm {
             TravelMode travel_mode : 4;
             LaneDescriptionID lane_description_id;
             guidance::RoadClassification road_classification;
-            uint32_t length = 0;
+            EdgeLength length = 0;
         };
 
         struct NodeBasedEdgeWithOSM : NodeBasedEdge {

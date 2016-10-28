@@ -100,8 +100,8 @@ void CompressedEdgeContainer::CompressEdge(const EdgeID edge_id_1,
                                            const NodeID target_node_id,
                                            const EdgeWeight weight1,
                                            const EdgeWeight weight2,
-                                           const uint32_t length1,
-                                           const uint32_t length2)
+                                           const EdgeLength length1,
+                                           const EdgeLength length2)
 {
     // remove super-trivial geometries
     BOOST_ASSERT(SPECIAL_EDGEID != edge_id_1);
@@ -185,7 +185,7 @@ void CompressedEdgeContainer::CompressEdge(const EdgeID edge_id_1,
 void CompressedEdgeContainer::AddUncompressedEdge(const EdgeID edge_id,
                                                   const NodeID target_node_id,
                                                   const EdgeWeight weight,
-                                                  const uint32_t length)
+                                                  const EdgeLength length)
 {
     // remove super-trivial geometries
     BOOST_ASSERT(SPECIAL_EDGEID != edge_id);

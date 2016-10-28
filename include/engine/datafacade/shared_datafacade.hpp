@@ -549,6 +549,19 @@ class SharedDataFacade final : public BaseDataFacade
                       });
     }
 
+    virtual void GetUncompressedLength(const EdgeID id, std::vector<EdgeLength> &result_length) const override {
+        const unsigned begin = m_geometry_indices.at(id);
+        const unsigned end = m_geometry_indices.at(id + 1);
+
+        result_length.clear();
+        result_length.reserve(end - begin);
+        std::for_each(m_geometry_list.begin() + begin,
+                      m_geometry_list.begin() + end,
+                      [&](const osrm::extractor::CompressedEdgeContainer::CompressedEdge &edge) {
+                          result_length.emplace_back(edge.length);
+                      });
+    }
+
     virtual unsigned GetGeometryIndexForEdgeID(const unsigned id) const override final
     {
         return m_via_node_list.at(id);

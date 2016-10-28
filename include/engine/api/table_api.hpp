@@ -36,7 +36,7 @@ class TableAPI final : public BaseAPI
     {
     }
 
-    virtual void MakeResponse(const std::vector<EdgeWeight> &durations,
+    virtual void MakeResponse(const std::pair<std::vector<EdgeWeight>, std::vector<int>> &durations,
                               const std::vector<PhantomNode> &phantoms,
                               util::json::Object &response) const
     {
@@ -66,7 +66,8 @@ class TableAPI final : public BaseAPI
         }
 
         response.values["durations"] =
-            MakeTable(durations, number_of_sources, number_of_destinations);
+            MakeTable(durations.first, number_of_sources, number_of_destinations);
+        response.values["length"] = MakeTable(durations.second, number_of_sources, number_of_destinations);
         response.values["code"] = "Ok";
     }
 
@@ -124,6 +125,32 @@ class TableAPI final : public BaseAPI
         }
         return json_table;
     }
+
+   /* virtual util::json::Array MakeTableL(const std::vector<EdgeLength> &values,
+                                        std::size_t number_of_rows,
+                                        std::size_t number_of_columns) const
+    {
+        util::json::Array json_table;
+        for (const auto row : util::irange<std::size_t>(0UL, number_of_rows))
+        {
+            util::json::Array json_row;
+            auto row_begin_iterator = values.begin() + (row * number_of_columns);
+            auto row_end_iterator = values.begin() + ((row + 1) * number_of_columns);
+            json_row.values.resize(number_of_columns);
+            std::transform(row_begin_iterator,
+                           row_end_iterator,
+                           json_row.values.begin(),
+                           [](const int length) {
+                               if (length == INVALID_EDGE_WEIGHT)
+                               {
+                                   return util::json::Value(util::json::Null());
+                               }
+                               return util::json::Value(util::json::Number(length));
+                           });
+            json_table.values.push_back(std::move(json_row));
+        }
+        return json_table;
+    }*/
 
     const TableParameters &parameters;
 };

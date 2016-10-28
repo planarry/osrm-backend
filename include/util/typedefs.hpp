@@ -58,6 +58,7 @@ using NodeID = std::uint32_t;
 using EdgeID = std::uint32_t;
 using NameID = std::uint32_t;
 using EdgeWeight = std::int32_t;
+using EdgeLength = std::int32_t;
 
 using LaneID = std::uint8_t;
 static const LaneID INVALID_LANEID = std::numeric_limits<LaneID>::max();
@@ -82,6 +83,7 @@ static const NameID INVALID_NAMEID = std::numeric_limits<NameID>::max();
 static const NameID EMPTY_NAMEID = 0;
 static const unsigned INVALID_COMPONENTID = 0;
 static const EdgeWeight INVALID_EDGE_WEIGHT = std::numeric_limits<EdgeWeight>::max();
+static const EdgeLength INVALID_EDGE_LENGTH = std::numeric_limits<EdgeLength>::max();
 
 using DatasourceID = std::uint8_t;
 

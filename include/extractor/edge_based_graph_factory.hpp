@@ -107,7 +107,7 @@ class EdgeBasedGraphFactory
     void GetEdgeBasedNodes(std::vector<EdgeBasedNode> &nodes);
     void GetStartPointMarkers(std::vector<bool> &node_is_startpoint);
     void GetEdgeBasedNodeWeights(std::vector<EdgeWeight> &output_node_weights);
-    void GetEdgeBasedNodeLength(std::vector<uint32_t> &output_node_length);
+    void GetEdgeBasedNodeLength(std::vector<EdgeLength> &output_node_length);
 
     // These access functions don't destroy the content
     const std::vector<BearingClassID> &GetBearingClassIds() const;
@@ -138,7 +138,7 @@ class EdgeBasedGraphFactory
     //! node weights that indicate the length of the segment (node based) represented by the
     //! edge-based node
     std::vector<EdgeWeight> m_edge_based_node_weights;
-    std::vector<uint32_t> m_edge_based_node_length;
+    std::vector<EdgeLength> m_edge_based_node_length;
 
     //! list of edge based nodes (compressed segments)
     std::vector<EdgeBasedNode> m_edge_based_node_list;
