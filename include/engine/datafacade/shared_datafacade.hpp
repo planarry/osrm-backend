@@ -860,6 +860,17 @@ class SharedDataFacade final : public BaseDataFacade
                 m_lane_description_masks.begin() +
                     m_lane_description_offsets[lane_description_id + 1]);
     }
+
+    virtual bool GetIteratorsOfAdditionWeights(const OSMNodeID node_from, const OSMNodeID node_to,
+                                               const unsigned int time_period_from, const unsigned int time_period_to,
+                                               std::vector<SegmentAddition>::iterator &iterator_from,
+                                               std::vector<SegmentAddition>::iterator &iterator_to) override {
+        return false;
+    }
+
+    virtual std::pair<unsigned int, unsigned int> GetLimitsOfTime() const override {
+        return std::make_pair(0,0);
+    }
 };
 }
 }

@@ -17,13 +17,14 @@ StorageConfig::StorageConfig(const boost::filesystem::path &base)
       datasource_indexes_path{base.string() + ".datasource_indexes"},
       names_data_path{base.string() + ".names"}, properties_path{base.string() + ".properties"},
       intersection_class_path{base.string() + ".icd"}, turn_lane_data_path{base.string() + ".tld"},
-      turn_lane_description_path{base.string() + ".tls"}
+      turn_lane_description_path{base.string() + ".tls"},
+      additional_weights_path{base.string() + ".add_weights"}
 {
 }
 
 bool StorageConfig::IsValid() const
 {
-    const constexpr auto num_files = 13;
+    const constexpr auto num_files = 14;
     const boost::filesystem::path paths[num_files] = {ram_index_path,
                                                       file_index_path,
                                                       hsgr_data_path,
@@ -36,7 +37,8 @@ bool StorageConfig::IsValid() const
                                                       datasource_indexes_path,
                                                       names_data_path,
                                                       properties_path,
-                                                      intersection_class_path};
+                                                      intersection_class_path,
+                                                      additional_weights_path};
 
     bool success = true;
     for (auto path = paths; path != paths + num_files; ++path)
@@ -44,7 +46,8 @@ bool StorageConfig::IsValid() const
         if (!boost::filesystem::is_regular_file(*path))
         {
             util::SimpleLogger().Write(logWARNING) << "Missing/Broken File: " << path->string();
-            success = false;
+//            if(path != paths + num_files -1) // if not additional_weights_path (actually it should be always created)
+                success = false;
         }
     }
 

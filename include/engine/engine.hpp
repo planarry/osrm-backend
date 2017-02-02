@@ -37,6 +37,7 @@ namespace plugins
 {
 class ViaRoutePlugin;
 class TablePlugin;
+class MathPlugin;
 class NearestPlugin;
 class TripPlugin;
 class MatchPlugin;
@@ -75,6 +76,7 @@ class Engine final
 
     std::unique_ptr<plugins::ViaRoutePlugin> route_plugin;
     std::unique_ptr<plugins::TablePlugin> table_plugin;
+    std::unique_ptr<plugins::MathPlugin> math_plugin;
     std::unique_ptr<plugins::NearestPlugin> nearest_plugin;
     std::unique_ptr<plugins::TripPlugin> trip_plugin;
     std::unique_ptr<plugins::MatchPlugin> match_plugin;

@@ -292,9 +292,9 @@ class ShortestPathRouting final
         int total_distance_to_forward = 0;
         int total_distance_to_reverse = 0;
         bool search_from_forward_node =
-            phantom_nodes_vector.front().source_phantom.forward_segment_id.enabled;
+                (bool)phantom_nodes_vector.front().source_phantom.forward_segment_id.enabled;
         bool search_from_reverse_node =
-            phantom_nodes_vector.front().source_phantom.reverse_segment_id.enabled;
+                (bool)phantom_nodes_vector.front().source_phantom.reverse_segment_id.enabled;
 
         std::vector<NodeID> prev_packed_leg_to_forward;
         std::vector<NodeID> prev_packed_leg_to_reverse;
@@ -318,8 +318,8 @@ class ShortestPathRouting final
             const auto &source_phantom = phantom_node_pair.source_phantom;
             const auto &target_phantom = phantom_node_pair.target_phantom;
 
-            bool search_to_forward_node = target_phantom.forward_segment_id.enabled;
-            bool search_to_reverse_node = target_phantom.reverse_segment_id.enabled;
+            bool search_to_forward_node = (bool)target_phantom.forward_segment_id.enabled;
+            bool search_to_reverse_node = (bool)target_phantom.reverse_segment_id.enabled;
 
             BOOST_ASSERT(!search_from_forward_node || source_phantom.forward_segment_id.enabled);
             BOOST_ASSERT(!search_from_reverse_node || source_phantom.reverse_segment_id.enabled);

@@ -36,6 +36,12 @@ class TableAPI final : public BaseAPI
     {
     }
 
+    struct AdditionalWeights final
+    {
+        unsigned long int start_time_from, start_time_to;
+        unsigned long int additional_weight;
+    };
+
     virtual void MakeResponse(const std::pair<std::vector<EdgeWeight>, std::vector<int>> &durations,
                               const std::vector<PhantomNode> &phantoms,
                               util::json::Object &response) const
@@ -69,6 +75,15 @@ class TableAPI final : public BaseAPI
             MakeTable(durations.first, number_of_sources, number_of_destinations);
         response.values["length"] = MakeTable(durations.second, number_of_sources, number_of_destinations);
         response.values["code"] = "Ok";
+    }
+
+    virtual void AppendResponse(const std::vector<std::vector<std::vector<api::TableAPI::AdditionalWeights>>> &table,
+                                util::json::Object &response) const
+    {
+        auto number_of_sources = parameters.sources.size();
+        auto number_of_destinations = parameters.destinations.size();
+
+        response.values["addition_durations"] =  MakeTable(table);
     }
 
     // FIXME gcc 4.8 doesn't support for lambdas to call protected member functions
@@ -121,6 +136,29 @@ class TableAPI final : public BaseAPI
                                }
                                return util::json::Value(util::json::Number(duration / 10.));
                            });
+            json_table.values.push_back(std::move(json_row));
+        }
+        return json_table;
+    }
+
+    virtual util::json::Array MakeTable(const std::vector<std::vector<std::vector<api::TableAPI::AdditionalWeights>>> &values) const
+    {
+        util::json::Array json_table;
+        for (const auto &row: values) {
+            util::json::Array json_row;
+            for (const auto &weights: row) {
+                util::json::Array json_weights;
+                json_weights.values.resize(weights.size());
+                std::transform(weights.begin(), weights.end(), json_weights.values.begin(),
+                               [](const api::TableAPI::AdditionalWeights &weight){
+                                   util::json::Object value;
+                                   value.values["from"] = util::json::Value(util::json::Number(weight.start_time_from));
+                                   value.values["to"] = util::json::Value(util::json::Number(weight.start_time_to));
+                                   value.values["weight"] = util::json::Value(util::json::Number(weight.additional_weight / 10.));
+                                   return value;
+                               });
+                json_row.values.push_back(std::move(json_weights));
+            }
             json_table.values.push_back(std::move(json_row));
         }
         return json_table;

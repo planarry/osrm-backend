@@ -1,6 +1,12 @@
-#ifndef TABLE_HPP
-#define TABLE_HPP
+//
+// Created by maksym on 23.11.16.
+//
 
+#ifndef OSRM_MATH_HPP
+#define OSRM_MATH_HPP
+
+
+#include <engine/api/route_parameters.hpp>
 #include "engine/plugins/plugin_base.hpp"
 
 #include "engine/api/table_parameters.hpp"
@@ -18,10 +24,10 @@ namespace engine
 namespace plugins
 {
 
-class TablePlugin final : public BasePlugin
+class MathPlugin final : public BasePlugin
 {
   public:
-    explicit TablePlugin(datafacade::BaseDataFacade &facade,
+    explicit MathPlugin(datafacade::BaseDataFacade &facade,
                          const int max_locations_distance_table);
 
     Status HandleRequest(const api::TableParameters &params, util::json::Object &result);
@@ -31,9 +37,13 @@ class TablePlugin final : public BasePlugin
     routing_algorithms::ManyToManyRouting<datafacade::BaseDataFacade> distance_table;
     routing_algorithms::ShortestPathRouting<datafacade::BaseDataFacade> shortest_path;
     int max_locations_distance_table;
+    /*std::shared_ptr<SearchEngine<DataFacadeT>> search_engine_ptr;
+    std::string descriptor_string;
+    DataFacadeT *facade;*/
 };
 }
 }
 }
 
-#endif // TABLE_HPP
+
+#endif //OSRM_MATH_HPP

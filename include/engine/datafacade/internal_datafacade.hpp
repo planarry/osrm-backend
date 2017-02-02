@@ -26,6 +26,7 @@
 #include "util/static_graph.hpp"
 #include "util/static_rtree.hpp"
 #include "util/typedefs.hpp"
+#include "util/additional_weight.hpp"
 
 #include "osrm/coordinate.hpp"
 
@@ -71,6 +72,8 @@ class InternalDataFacade final : public BaseDataFacade
 
     unsigned m_check_sum;
     unsigned m_number_of_nodes;
+    unsigned time_additional_weight_min = 0;
+    unsigned time_additional_weight_max = 0;
     std::unique_ptr<QueryGraph> m_query_graph;
     std::string m_timestamp;
 
@@ -91,6 +94,7 @@ class InternalDataFacade final : public BaseDataFacade
     util::ShM<std::string, false>::vector m_datasource_names;
     util::ShM<std::uint32_t, false>::vector m_lane_description_offsets;
     util::ShM<extractor::guidance::TurnLaneType::Mask, false>::vector m_lane_description_masks;
+    util::ShM<SegmentSpeedSource, false>::vector m_segment_additional_weights;
     extractor::ProfileProperties m_profile_properties;
 
     std::unique_ptr<InternalRTree> m_static_rtree;
@@ -135,6 +139,31 @@ class InternalDataFacade final : public BaseDataFacade
         m_lane_tupel_id_pairs.resize(size);
         in_stream.read(reinterpret_cast<char *>(&m_lane_tupel_id_pairs[0]),
                        sizeof(m_lane_tupel_id_pairs) * size);
+    }
+
+    void LoadAdditionalWeights(const boost::filesystem::path &additional_weights_path)
+    {
+        boost::filesystem::ifstream in_stream(additional_weights_path);
+        if (!in_stream)
+        {
+//            throw util::exception("Could not open " + additional_weights_path.string() + " for reading.");
+            return;
+        }
+        std::uint64_t size;
+        in_stream.read(reinterpret_cast<char *>(&size), sizeof(size));
+        m_segment_additional_weights.resize(size);
+        for (auto &segmentAdditionalWeight : m_segment_additional_weights) {
+            in_stream.read(reinterpret_cast<char *>(&segmentAdditionalWeight.segment), sizeof(Segment));
+            in_stream.read(reinterpret_cast<char *>(&size), sizeof(size));
+            segmentAdditionalWeight.speed_source.segments.resize(size);
+            in_stream.read(reinterpret_cast<char *>(&segmentAdditionalWeight.speed_source.segments[0]),
+                           sizeof(SegmentAddition) * size);
+            time_additional_weight_min = (time_additional_weight_min)?
+                                         std::min(segmentAdditionalWeight.speed_source.segments.front().time_from, time_additional_weight_min)
+                                                                     : segmentAdditionalWeight.speed_source.segments.front().time_from;
+            time_additional_weight_max = std::max(segmentAdditionalWeight.speed_source.segments.back().time_to,
+                                                  time_additional_weight_max);
+        }
     }
 
     void LoadTimestamp(const boost::filesystem::path &timestamp_path)
@@ -427,6 +456,11 @@ class InternalDataFacade final : public BaseDataFacade
 
         util::SimpleLogger().Write() << "Loading Lane Data Pairs";
         LoadLaneTupelIdPairs(config.turn_lane_data_path);
+
+        util::SimpleLogger().Write() << "Loading additional edge weights information";
+        LoadAdditionalWeights(config.additional_weights_path);
+
+        util::SimpleLogger().Write() << "Loading is finished";
     }
 
     // search graph access
@@ -821,6 +855,44 @@ class InternalDataFacade final : public BaseDataFacade
                 m_lane_description_masks.begin() + m_lane_description_offsets[lane_description_id],
                 m_lane_description_masks.begin() +
                     m_lane_description_offsets[lane_description_id + 1]);
+    }
+
+    virtual bool GetIteratorsOfAdditionWeights(const OSMNodeID node_from, const OSMNodeID node_to,
+                                               const unsigned int time_period_from, const unsigned int time_period_to,
+                                               std::vector<SegmentAddition>::iterator &iterator_from,
+                                               std::vector<SegmentAddition>::iterator &iterator_to)  override
+    {
+        auto findSegmentIterator = find(m_segment_additional_weights, Segment{node_from, node_to});
+        if((findSegmentIterator == m_segment_additional_weights.end())
+           || (findSegmentIterator->speed_source.segments.front().time_from > time_period_to)
+           || (findSegmentIterator->speed_source.segments.back().time_to < time_period_from))
+            return false;
+
+        iterator_from = findSegmentIterator->speed_source.segments.begin();
+        iterator_to = findSegmentIterator->speed_source.segments.end();
+
+        while(iterator_from != iterator_to)
+        {
+            if(iterator_from->time_to >= time_period_from)
+                break;
+            iterator_from++;
+        }
+        if(iterator_from != iterator_to) {
+            iterator_to--;
+            while (iterator_from != iterator_to) {
+                if (iterator_to->time_from <= time_period_to)
+                    break;
+                iterator_to--;
+            }
+            iterator_to++;
+        } else
+            return false;
+
+        return true;
+    }
+
+    virtual std::pair<unsigned int, unsigned int> GetLimitsOfTime() const override {
+        return std::make_pair(time_additional_weight_min,time_additional_weight_max);
     }
 };
 }

@@ -43,29 +43,6 @@
 #include <tuple>
 #include <vector>
 
-namespace std
-{
-
-template <> struct hash<std::pair<OSMNodeID, OSMNodeID>>
-{
-    std::size_t operator()(const std::pair<OSMNodeID, OSMNodeID> &k) const noexcept
-    {
-        return static_cast<uint64_t>(k.first) ^ (static_cast<uint64_t>(k.second) << 12);
-    }
-};
-
-template <> struct hash<std::tuple<OSMNodeID, OSMNodeID, OSMNodeID>>
-{
-    std::size_t operator()(const std::tuple<OSMNodeID, OSMNodeID, OSMNodeID> &k) const noexcept
-    {
-        std::size_t seed = 0;
-        boost::hash_combine(seed, static_cast<uint64_t>(std::get<0>(k)));
-        boost::hash_combine(seed, static_cast<uint64_t>(std::get<1>(k)));
-        boost::hash_combine(seed, static_cast<uint64_t>(std::get<2>(k)));
-        return seed;
-    }
-};
-}
 
 namespace osrm
 {
@@ -102,18 +79,16 @@ int Contractor::Run()
     util::SimpleLogger().Write() << "Loading edge-expanded graph representation";
 
     util::DeallocatingVector<extractor::EdgeBasedEdge> edge_based_edge_list;
+    SegmentSpeedSourceFlatMap segment_speed_lookup;
 
-    EdgeID max_edge_id = LoadEdgeExpandedGraph(config.edge_based_graph_path,
-                                               edge_based_edge_list,
-                                               config.edge_segment_lookup_path,
-                                               config.edge_penalty_path,
+    EdgeID max_edge_id = LoadEdgeExpandedGraph(config.edge_based_graph_path, edge_based_edge_list,
+                                               config.edge_segment_lookup_path, config.edge_penalty_path,
                                                config.segment_speed_lookup_paths,
-                                               config.turn_penalty_lookup_paths,
-                                               config.node_based_graph_path,
-                                               config.geometry_path,
-                                               config.datasource_names_path,
+                                               config.turn_penalty_lookup_paths, config.node_based_graph_path,
+                                               config.geometry_path, config.datasource_names_path,
                                                config.datasource_indexes_path,
-                                               config.rtree_leaf_path);
+                                               config.rtree_leaf_path,
+                                               segment_speed_lookup);
 
     // Contracting the edge-expanded graph
 
@@ -168,6 +143,8 @@ int Contractor::Run()
         WriteNodeLevels(std::move(node_levels));
     }
 
+    saveAddWeightsToFile(segment_speed_lookup, config.additional_weights_path);
+
     TIMER_STOP(preparing);
 
     util::SimpleLogger().Write() << "Preprocessing : " << TIMER_SEC(preparing) << " seconds";
@@ -180,210 +157,17 @@ int Contractor::Run()
     return 0;
 }
 
-// Utilities for LoadEdgeExpandedGraph to restore my sanity
-namespace
-{
-
-struct Segment final
-{
-    OSMNodeID from, to;
-};
-
-struct SpeedSource final
-{
-    unsigned speed;
-    std::uint8_t source;
-};
-
-struct SegmentSpeedSource final
-{
-    Segment segment;
-    SpeedSource speed_source;
-};
-
-using SegmentSpeedSourceFlatMap = std::vector<SegmentSpeedSource>;
-
-// Binary Search over a flattened key,val Segment storage
-SegmentSpeedSourceFlatMap::iterator find(SegmentSpeedSourceFlatMap &map, const Segment &key)
-{
-    const auto last = end(map);
-
-    const auto by_segment = [](const SegmentSpeedSource &lhs, const SegmentSpeedSource &rhs) {
-        return std::tie(lhs.segment.from, lhs.segment.to) >
-               std::tie(rhs.segment.from, rhs.segment.to);
-    };
-
-    auto it = std::lower_bound(begin(map), last, SegmentSpeedSource{key, {0, 0}}, by_segment);
-
-    if (it != last && (std::tie(it->segment.from, it->segment.to) == std::tie(key.from, key.to)))
-        return it;
-
-    return last;
-}
-
-// Convenience aliases. TODO: make actual types at some point in time.
-// TODO: turn penalties need flat map + binary search optimization, take a look at segment speeds
-
-using Turn = std::tuple<OSMNodeID, OSMNodeID, OSMNodeID>;
-using TurnHasher = std::hash<Turn>;
-using PenaltySource = std::pair<double, std::uint8_t>;
-using TurnPenaltySourceMap = tbb::concurrent_unordered_map<Turn, PenaltySource, TurnHasher>;
-
-// Functions for parsing files and creating lookup tables
-
-SegmentSpeedSourceFlatMap
-parse_segment_lookup_from_csv_files(const std::vector<std::string> &segment_speed_filenames)
-{
-    // TODO: shares code with turn penalty lookup parse function
-
-    using Mutex = tbb::spin_mutex;
-
-    // Loaded and parsed in parallel, at the end we combine results in a flattened map-ish view
-    SegmentSpeedSourceFlatMap flatten;
-    Mutex flatten_mutex;
-
-    const auto parse_segment_speed_file = [&](const std::size_t idx) {
-        const auto file_id = idx + 1; // starts at one, zero means we assigned the weight
-        const auto filename = segment_speed_filenames[idx];
-
-        std::ifstream segment_speed_file{filename, std::ios::binary};
-        if (!segment_speed_file)
-            throw util::exception{"Unable to open segment speed file " + filename};
-
-        SegmentSpeedSourceFlatMap local;
-
-        std::uint64_t from_node_id{};
-        std::uint64_t to_node_id{};
-        unsigned speed{};
-
-        for (std::string line; std::getline(segment_speed_file, line);)
-        {
-            using namespace boost::spirit::qi;
-
-            auto it = begin(line);
-            const auto last = end(line);
-
-            // The ulong_long -> uint64_t will likely break on 32bit platforms
-            const auto ok =
-                parse(it,
-                      last,                                                                  //
-                      (ulong_long >> ',' >> ulong_long >> ',' >> uint_ >> *(',' >> *char_)), //
-                      from_node_id,
-                      to_node_id,
-                      speed); //
-
-            if (!ok || it != last)
-                throw util::exception{"Segment speed file " + filename + " malformed"};
-
-            SegmentSpeedSource val{{OSMNodeID{from_node_id}, OSMNodeID{to_node_id}},
-                                   {speed, static_cast<std::uint8_t>(file_id)}};
-
-            local.push_back(std::move(val));
-        }
-
-        util::SimpleLogger().Write() << "Loaded speed file " << filename << " with " << local.size()
-                                     << " speeds";
-
-        {
-            Mutex::scoped_lock _{flatten_mutex};
-
-            flatten.insert(end(flatten),
-                           std::make_move_iterator(begin(local)),
-                           std::make_move_iterator(end(local)));
-        }
-    };
-
-    tbb::parallel_for(std::size_t{0}, segment_speed_filenames.size(), parse_segment_speed_file);
-
-    // With flattened map-ish view of all the files, sort and unique them on from,to,source
-    // The greater '>' is used here since we want to give files later on higher precedence
-    const auto sort_by = [](const SegmentSpeedSource &lhs, const SegmentSpeedSource &rhs) {
-        return std::tie(lhs.segment.from, lhs.segment.to, lhs.speed_source.source) >
-               std::tie(rhs.segment.from, rhs.segment.to, rhs.speed_source.source);
-    };
-
-    std::stable_sort(begin(flatten), end(flatten), sort_by);
-
-    // Unique only on from,to to take the source precedence into account and remove duplicates
-    const auto unique_by = [](const SegmentSpeedSource &lhs, const SegmentSpeedSource &rhs) {
-        return std::tie(lhs.segment.from, lhs.segment.to) ==
-               std::tie(rhs.segment.from, rhs.segment.to);
-    };
-
-    const auto it = std::unique(begin(flatten), end(flatten), unique_by);
-
-    flatten.erase(it, end(flatten));
-
-    util::SimpleLogger().Write() << "In total loaded " << segment_speed_filenames.size()
-                                 << " speed file(s) with a total of " << flatten.size()
-                                 << " unique values";
-
-    return flatten;
-}
-
-TurnPenaltySourceMap
-parse_turn_penalty_lookup_from_csv_files(const std::vector<std::string> &turn_penalty_filenames)
-{
-    // TODO: shares code with turn penalty lookup parse function
-    TurnPenaltySourceMap map;
-
-    const auto parse_turn_penalty_file = [&](const std::size_t idx) {
-        const auto file_id = idx + 1; // starts at one, zero means we assigned the weight
-        const auto filename = turn_penalty_filenames[idx];
-
-        std::ifstream turn_penalty_file{filename, std::ios::binary};
-        if (!turn_penalty_file)
-            throw util::exception{"Unable to open turn penalty file " + filename};
-
-        std::uint64_t from_node_id{};
-        std::uint64_t via_node_id{};
-        std::uint64_t to_node_id{};
-        double penalty{};
-
-        for (std::string line; std::getline(turn_penalty_file, line);)
-        {
-            using namespace boost::spirit::qi;
-
-            auto it = begin(line);
-            const auto last = end(line);
-
-            // The ulong_long -> uint64_t will likely break on 32bit platforms
-            const auto ok = parse(it,
-                                  last, //
-                                  (ulong_long >> ',' >> ulong_long >> ',' >> ulong_long >> ',' >>
-                                   double_ >> *(',' >> *char_)), //
-                                  from_node_id,
-                                  via_node_id,
-                                  to_node_id,
-                                  penalty); //
-
-            if (!ok || it != last)
-                throw util::exception{"Turn penalty file " + filename + " malformed"};
-
-            map[std::make_tuple(
-                OSMNodeID{from_node_id}, OSMNodeID{via_node_id}, OSMNodeID{to_node_id})] =
-                std::make_pair(penalty, file_id);
-        }
-    };
-
-    tbb::parallel_for(std::size_t{0}, turn_penalty_filenames.size(), parse_turn_penalty_file);
-
-    return map;
-}
-} // anon ns
-
-EdgeID Contractor::LoadEdgeExpandedGraph(
-    std::string const &edge_based_graph_filename,
-    util::DeallocatingVector<extractor::EdgeBasedEdge> &edge_based_edge_list,
-    const std::string &edge_segment_lookup_filename,
-    const std::string &edge_penalty_filename,
-    const std::vector<std::string> &segment_speed_filenames,
-    const std::vector<std::string> &turn_penalty_filenames,
-    const std::string &nodes_filename,
-    const std::string &geometry_filename,
-    const std::string &datasource_names_filename,
-    const std::string &datasource_indexes_filename,
-    const std::string &rtree_leaf_filename)
+EdgeID Contractor::LoadEdgeExpandedGraph(std::string const &edge_based_graph_filename,
+                                         util::DeallocatingVector<extractor::EdgeBasedEdge> &edge_based_edge_list,
+                                         const std::string &edge_segment_lookup_filename,
+                                         const std::string &edge_penalty_filename,
+                                         const std::vector<std::string> &segment_speed_filenames,
+                                         const std::vector<std::string> &turn_penalty_filenames,
+                                         const std::string &nodes_filename, const std::string &geometry_filename,
+                                         const std::string &datasource_names_filename,
+                                         const std::string &datasource_indexes_filename,
+                                         const std::string &rtree_leaf_filename,
+                                         SegmentSpeedSourceFlatMap &segment_speed_lookup)
 {
     if (segment_speed_filenames.size() > 255 || turn_penalty_filenames.size() > 255)
         throw util::exception("Limit of 255 segment speed and turn penalty files each reached");
@@ -445,7 +229,7 @@ EdgeID Contractor::LoadEdgeExpandedGraph(
     util::SimpleLogger().Write() << "Reading " << graph_header.number_of_edges
                                  << " edges from the edge based graph";
 
-    SegmentSpeedSourceFlatMap segment_speed_lookup;
+//    SegmentSpeedSourceFlatMap segment_speed_lookup;
     TurnPenaltySourceMap turn_penalty_lookup;
 
     const auto parse_segment_speeds = [&] {
@@ -579,6 +363,8 @@ EdgeID Contractor::LoadEdgeExpandedGraph(
                         u = &(internal_to_external_node_map[leaf_object.u]);
                         v = &(
                             internal_to_external_node_map[m_geometry_list[forward_begin].node_id]);
+//                        util::SimpleLogger().Write() << "1: " << u->node_id.__value << " " << v->node_id.__value
+//                                                     << std::endl;
                     }
                     else
                     {
@@ -589,7 +375,16 @@ EdgeID Contractor::LoadEdgeExpandedGraph(
                         v = &(internal_to_external_node_map
                                   [m_geometry_list[forward_begin + leaf_object.fwd_segment_position]
                                        .node_id]);
+//                        util::SimpleLogger().Write() << "2: " << u->node_id.__value << " " << v->node_id.__value
+//                                                     << std::endl;
                     }
+
+//                    volatile uint64_t u_id = u->node_id.__value;
+//                    volatile uint64_t v_id = v->node_id.__value;
+//
+//                    if (u_id == 1925858401 && v_id == 1925921950)
+//                        std::cout << u_id << " +++ " << v_id << std::endl;
+
                     const double segment_length = util::coordinate_calculation::greatCircleDistance(
                         util::Coordinate{u->lon, u->lat}, util::Coordinate{v->lon, v->lat});
 
@@ -606,6 +401,15 @@ EdgeID Contractor::LoadEdgeExpandedGraph(
                             new_segment_weight;
                         m_geometry_datasource[forward_begin + leaf_object.fwd_segment_position] =
                             forward_speed_iter->speed_source.source;
+
+                        // Change speed to weight(time)
+                        auto replace_speed_to_weight = [segment_length](SegmentAddition &segmentAddition){
+                            segmentAddition.speed =  distanceAndSpeedToWeight(segment_length, segmentAddition.speed);
+                        };
+
+                        std::for_each(forward_speed_iter->speed_source.segments.begin(),
+                                      forward_speed_iter->speed_source.segments.end(),
+                                      replace_speed_to_weight);
 
                         // count statistics for logging
                         counters[forward_speed_iter->speed_source.source] += 1;
@@ -656,6 +460,16 @@ EdgeID Contractor::LoadEdgeExpandedGraph(
                             new_segment_weight;
                         m_geometry_datasource[reverse_begin + rev_segment_position] =
                             reverse_speed_iter->speed_source.source;
+
+                        // This container has already changed speed to weight(time). Don't repeat code
+                        // Change speed to weight(time)
+                        auto replace_speed_to_weight = [segment_length](SegmentAddition &segmentAddition){
+                            segmentAddition.speed =  distanceAndSpeedToWeight(segment_length, segmentAddition.speed);
+                        };
+
+                        std::for_each(reverse_speed_iter->speed_source.segments.begin(),
+                                      reverse_speed_iter->speed_source.segments.end(),
+                                      replace_speed_to_weight);
 
                         // count statistics for logging
                         counters[reverse_speed_iter->speed_source.source] += 1;

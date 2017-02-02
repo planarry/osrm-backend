@@ -55,6 +55,7 @@ struct ContractorConfig
         rtree_leaf_path = osrm_input_path.string() + ".fileIndex";
         datasource_names_path = osrm_input_path.string() + ".datasource_names";
         datasource_indexes_path = osrm_input_path.string() + ".datasource_indexes";
+        additional_weights_path = osrm_input_path.string() + ".add_weights";
     }
 
     boost::filesystem::path config_file_path;
@@ -70,6 +71,7 @@ struct ContractorConfig
     std::string node_based_graph_path;
     std::string geometry_path;
     std::string rtree_leaf_path;
+    std::string additional_weights_path;
     bool use_cached_priority;
 
     unsigned requested_num_threads;

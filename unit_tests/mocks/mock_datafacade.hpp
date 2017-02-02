@@ -220,6 +220,17 @@ class MockDataFacade final : public engine::datafacade::BaseDataFacade
         result.activate(3);
         return result;
     }
+
+    virtual bool GetIteratorsOfAdditionWeights(const OSMNodeID node_from, const OSMNodeID node_to,
+                                               const unsigned int time_period_from, const unsigned int time_period_to,
+                                               std::vector<SegmentAddition>::iterator &iterator_from,
+                                               std::vector<SegmentAddition>::iterator &iterator_to) override {
+        return false;
+    }
+
+    virtual std::pair<unsigned int, unsigned int> GetLimitsOfTime() const override {
+        return std::make_pair(0,0);
+    }
 };
 } // ns test
 } // ns osrm

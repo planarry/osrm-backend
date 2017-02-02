@@ -275,6 +275,11 @@ int main(int argc, const char *argv[]) try
                 util::SimpleLogger().Write(logWARNING) << config.storage_config.properties_path
                                                        << " is not found";
             }
+            if (!boost::filesystem::is_regular_file(config.storage_config.additional_weights_path))
+            {
+                util::SimpleLogger().Write(logWARNING) << config.storage_config.additional_weights_path
+                                                       << " is not found";
+            }
         }
         return EXIT_FAILURE;
     }

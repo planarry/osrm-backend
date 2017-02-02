@@ -15,6 +15,7 @@
 #include "util/integer_range.hpp"
 #include "util/string_util.hpp"
 #include "util/typedefs.hpp"
+#include "util/additional_weight.hpp"
 
 #include "osrm/coordinate.hpp"
 
@@ -174,6 +175,14 @@ class BaseDataFacade
     virtual EntryClassID GetEntryClassID(const EdgeID eid) const = 0;
 
     virtual util::guidance::EntryClass GetEntryClass(const EntryClassID entry_class_id) const = 0;
+
+    virtual bool GetIteratorsOfAdditionWeights(const OSMNodeID node_from, const OSMNodeID node_to,
+                                               const unsigned int time_period_from,
+                                               const unsigned int time_period_to,
+                                               std::vector<SegmentAddition>::iterator &iterator_from,
+                                               std::vector<SegmentAddition>::iterator &iterator_to) = 0;
+
+    virtual std::pair<unsigned, unsigned> GetLimitsOfTime() const = 0;
 };
 }
 }
