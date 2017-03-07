@@ -190,8 +190,7 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
                     if ((legGeometry.annotations.size() ==
                          legGeometry.osm_node_ids.size() - 1)  // each edge(pair of nodes) has a weight
                         && !part_of_edge_weight) {
-                        for (unsigned curr_node = 0; curr_node <
-                                                     legGeometry.annotations.size(); ++curr_node) {
+                        for (unsigned curr_node = 0; curr_node < legGeometry.annotations.size(); ++curr_node) {
                             std::vector<SegmentAddition>::iterator addition_time_from;
                             std::vector<SegmentAddition>::iterator addition_time_to;
                             bool has_addition_time = facade.GetIteratorsOfAdditionWeights(
