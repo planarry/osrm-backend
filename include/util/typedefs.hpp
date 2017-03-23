@@ -57,6 +57,7 @@ using OSMEdgeID_weak = std::uint64_t;
 using NodeID = std::uint32_t;
 using EdgeID = std::uint32_t;
 using NameID = std::uint32_t;
+using PointID = std::uint32_t;
 using EdgeWeight = std::int32_t;
 using EdgeLength = std::int32_t;
 

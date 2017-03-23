@@ -48,7 +48,6 @@ class TableAPI final : public BaseAPI
     {
         auto number_of_sources = parameters.sources.size();
         auto number_of_destinations = parameters.destinations.size();
-        ;
 
         // symmetric case
         if (parameters.sources.empty())
@@ -80,10 +79,16 @@ class TableAPI final : public BaseAPI
     virtual void AppendResponse(const std::vector<std::vector<std::vector<api::TableAPI::AdditionalWeights>>> &table,
                                 util::json::Object &response) const
     {
-        auto number_of_sources = parameters.sources.size();
-        auto number_of_destinations = parameters.destinations.size();
-
         response.values["addition_durations"] =  MakeTable(table);
+    }
+
+    virtual void AppendGraphResponse(const std::vector<std::list<PointID>> &table,
+                                     const std::vector<PhantomNode> &phantoms,
+                                     util::json::Object &response) const
+    {
+        auto number_of_sources = !parameters.sources.empty() ? parameters.sources.size() : phantoms.size();
+
+        response.values["graph"] =  MakeTable(table, number_of_sources);
     }
 
     // FIXME gcc 4.8 doesn't support for lambdas to call protected member functions
@@ -162,6 +167,20 @@ class TableAPI final : public BaseAPI
             json_table.values.push_back(std::move(json_row));
         }
         return json_table;
+    }
+
+    virtual util::json::Array MakeTable(const std::vector<std::list<PointID>> &values,
+                                        std::size_t number_of_rows) const
+    {
+        util::json::Array json_matrix_graph;
+        for (const auto row : util::irange<std::size_t>(0UL, number_of_rows)) {
+            util::json::Array json_row_graph;
+            json_row_graph.values.insert(json_row_graph.values.end(),
+                                         values[row].begin(),
+                                         values[row].end());
+            json_matrix_graph.values.push_back(json_row_graph);
+        }
+        return json_matrix_graph;
     }
 
    /* virtual util::json::Array MakeTableL(const std::vector<EdgeLength> &values,

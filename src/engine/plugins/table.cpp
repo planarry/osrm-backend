@@ -60,12 +60,12 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
     auto snapped_phantoms = SnapPhantomNodes(GetPhantomNodes(params));
     auto result_table = distance_table(snapped_phantoms, params.sources, params.destinations);
 
-    if (result_table.first.empty()) {
+    if (result_table.first.first.empty()) {
         return Error("NoTable", "No table found", result);
     }
 
     api::TableAPI table_api{facade, params};
-    table_api.MakeResponse(result_table, snapped_phantoms, result);
+    table_api.MakeResponse(result_table.first, snapped_phantoms, result);
 
     std::pair<unsigned, unsigned> time_limits = facade.GetLimitsOfTime();
 
@@ -143,7 +143,7 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
                     std::vector<unsigned int> result_time;
                     for (unsigned int time_index = params.time_period_from;
                          time_index < params.time_period_to
-                                      - result_table.first[index_source * our_destinations.size() + index_destination];
+                                      - result_table.first.first[index_source * our_destinations.size() + index_destination];
                          time_index += delta_time) {
                         started_time.push_back(time_index);
                         result_time.push_back(time_index);
@@ -259,6 +259,7 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
         }
         table_api.AppendResponse(addition_table_result, result);
     }
+    table_api.AppendGraphResponse(result_table.second, snapped_phantoms, result);
 
     return Status::Ok;
 }
