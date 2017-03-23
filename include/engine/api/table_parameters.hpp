@@ -60,6 +60,7 @@ struct TableParameters : public BaseParameters
     std::vector<std::size_t> sources;
     std::vector<std::size_t> destinations;
     unsigned int time_period_from = 0, time_period_to = 0;
+    unsigned int graph_flag = 0;
 
     TableParameters() = default;
     template <typename... Args>

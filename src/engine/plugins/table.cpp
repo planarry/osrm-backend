@@ -58,7 +58,7 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
     }
 
     auto snapped_phantoms = SnapPhantomNodes(GetPhantomNodes(params));
-    auto result_table = distance_table(snapped_phantoms, params.sources, params.destinations);
+    auto result_table = distance_table(snapped_phantoms, params.sources, params.destinations, params.graph_flag);
 
     if (result_table.first.first.empty()) {
         return Error("NoTable", "No table found", result);
@@ -259,7 +259,8 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
         }
         table_api.AppendResponse(addition_table_result, result);
     }
-    table_api.AppendGraphResponse(result_table.second, snapped_phantoms, result);
+    if (params.graph_flag == 1)
+        table_api.AppendGraphResponse(result_table.second, snapped_phantoms, result);
 
     return Status::Ok;
 }

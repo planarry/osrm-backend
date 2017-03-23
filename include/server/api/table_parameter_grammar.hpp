@@ -52,7 +52,9 @@ struct TableParametersGrammar final : public BaseParametersGrammar<Iterator, Sig
                      | (qi::lit("timefrom=") >
                         qi::uint_[ph::bind(&engine::api::TableParameters::time_period_from, qi::_r1) = qi::_1])
                      | (qi::lit("timeto=") >
-                        qi::uint_[ph::bind(&engine::api::TableParameters::time_period_to, qi::_r1) = qi::_1]);
+                        qi::uint_[ph::bind(&engine::api::TableParameters::time_period_to, qi::_r1) = qi::_1])
+                     | (qi::lit("graph=") >
+                        qi::uint_[ph::bind(&engine::api::TableParameters::graph_flag, qi::_r1) = qi::_1]);
 
         root_rule = BaseGrammar::query_rule(qi::_r1) > -qi::lit(".json") >
                     -('?' > (table_rule(qi::_r1) | BaseGrammar::base_rule(qi::_r1)) % '&');

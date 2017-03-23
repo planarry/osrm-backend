@@ -52,7 +52,8 @@ class ManyToManyRouting final
     std::pair<std::pair<std::vector<EdgeWeight>, std::vector<EdgeLength>>, std::vector<std::list<PointID>>> operator()(
             const std::vector<PhantomNode> &phantom_nodes,
             const std::vector<std::size_t> &source_indices,
-            const std::vector<std::size_t> &target_indices) const
+            const std::vector<std::size_t> &target_indices,
+            const unsigned int needGraph) const
     {
         const unsigned number_of_sources =
             source_indices.empty() ? phantom_nodes.size() : source_indices.size();
@@ -86,8 +87,10 @@ class ManyToManyRouting final
 
             if (phantom.forward_segment_id.enabled)
             {
-                phantomes_for_point[column_idx].insert(phantom.forward_segment_id.id);
-                all_phantomes.insert(phantom.forward_segment_id.id);
+                if (needGraph == 1) {
+                    phantomes_for_point[column_idx].insert(phantom.forward_segment_id.id);
+                    all_phantomes.insert(phantom.forward_segment_id.id);
+                }
                 query_heap.Insert(phantom.forward_segment_id.id,
                                   std::pair<int, int>(phantom.GetForwardWeightPlusOffset(),
                                                       phantom.GetForwardLengthPlusOffset()),
@@ -95,8 +98,10 @@ class ManyToManyRouting final
             }
             if (phantom.reverse_segment_id.enabled)
             {
-                phantomes_for_point[column_idx].insert(phantom.reverse_segment_id.id);
-                all_phantomes.insert(phantom.reverse_segment_id.id);
+                if (needGraph == 1) {
+                    phantomes_for_point[column_idx].insert(phantom.reverse_segment_id.id);
+                    all_phantomes.insert(phantom.reverse_segment_id.id);
+                }
                 query_heap.Insert(phantom.reverse_segment_id.id,
                                   std::pair<int, int>(phantom.GetReverseWeightPlusOffset(),
                                                       phantom.GetReverseLengthPlusOffset()),
@@ -106,7 +111,7 @@ class ManyToManyRouting final
             // explore search space
             while (!query_heap.Empty())
             {
-                BackwardRoutingStep(column_idx, query_heap, search_space_with_buckets, backward_hierarchy_tree);
+                BackwardRoutingStep(column_idx, query_heap, search_space_with_buckets, backward_hierarchy_tree, needGraph);
             }
             ++column_idx;
         };
@@ -141,7 +146,8 @@ class ManyToManyRouting final
                                    search_space_with_buckets,
                                    result_table,
                                    forward_hierarchy_tree,
-                                   cross_nodes_table);
+                                   cross_nodes_table,
+                                   needGraph);
             }
             ++row_idx;
         };
@@ -178,14 +184,15 @@ class ManyToManyRouting final
             }
         }
 
-        BuildFullGraph(result_table,
-                       cross_nodes_table,
-                       forward_hierarchy_tree,
-                       backward_hierarchy_tree,
-                       phantomes_for_point,
-                       all_phantomes,
-                       number_of_sources,
-                       number_of_targets);
+        if (needGraph == 1)
+            BuildFullGraph(result_table,
+                           cross_nodes_table,
+                           forward_hierarchy_tree,
+                           backward_hierarchy_tree,
+                           phantomes_for_point,
+                           all_phantomes,
+                           number_of_sources,
+                           number_of_targets);
 
         return result_table;
     }
@@ -196,13 +203,15 @@ class ManyToManyRouting final
                             const SearchSpaceWithBuckets &search_space_with_buckets,
                             std::pair<std::pair<std::vector<EdgeWeight>, std::vector<EdgeLength>>,
                                     std::vector<std::list<PointID>>> &result_table,
-                            HierarchyTree &hierarchy_tree, std::vector<NodeID> &cross_nodes_table) const
+                            HierarchyTree &hierarchy_tree, std::vector<NodeID> &cross_nodes_table,
+                            const unsigned int needGraph) const
     {
         const NodeID node = query_heap.DeleteMin();
         const int source_distance = query_heap.GetKey(node).first;
         const int source_length = query_heap.GetKey(node).second;
 
-        hierarchy_tree[row_idx][node] = query_heap.GetData(node).parent;
+        if (needGraph == 1)
+            hierarchy_tree[row_idx][node] = query_heap.GetData(node).parent;
         // check if each encountered node has an entry
         const auto bucket_iterator = search_space_with_buckets.find(node);
         // iterate bucket if there exists one
@@ -234,7 +243,8 @@ class ManyToManyRouting final
                 }
                 else if (new_distance < current_distance)
                 {
-                    cross_nodes_table[row_idx * number_of_targets + column_idx] = node;
+                    if (needGraph == 1)
+                        cross_nodes_table[row_idx * number_of_targets + column_idx] = node;
                     result_table.first.first[row_idx * number_of_targets + column_idx] = new_distance;
                     result_table.first.second[row_idx * number_of_targets + column_idx] = new_length;
                 }
@@ -250,13 +260,15 @@ class ManyToManyRouting final
     void BackwardRoutingStep(const unsigned column_idx,
                              QueryHeapL &query_heap,
                              SearchSpaceWithBuckets &search_space_with_buckets,
-                             HierarchyTree &hierarchy_tree) const
+                             HierarchyTree &hierarchy_tree,
+                             const unsigned int needGraph) const
     {
         const NodeID node = query_heap.DeleteMin();
         const int target_distance = query_heap.GetKey(node).first;
         const int target_length = query_heap.GetKey(node).second;
 
-        hierarchy_tree[column_idx][node] = query_heap.GetData(node).parent;
+        if (needGraph == 1)
+            hierarchy_tree[column_idx][node] = query_heap.GetData(node).parent;
         // store settled nodes in search space bucket
         search_space_with_buckets[node].emplace_back(column_idx, target_distance, target_length);
 
