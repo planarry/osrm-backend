@@ -70,9 +70,9 @@ class TableAPI final : public BaseAPI
             response.values["destinations"] = MakeWaypoints(phantoms, parameters.destinations);
         }
 
-        response.values["durations"] =
+        response.values["time_table"] =
             MakeTable(durations.first, number_of_sources, number_of_destinations);
-        response.values["length"] = MakeTable(durations.second, number_of_sources, number_of_destinations);
+        response.values["length_table"] = MakeTable(durations.second, number_of_sources, number_of_destinations);
         response.values["code"] = "Ok";
     }
 
@@ -88,7 +88,7 @@ class TableAPI final : public BaseAPI
     {
         auto number_of_sources = !parameters.sources.empty() ? parameters.sources.size() : phantoms.size();
 
-        response.values["graph"] =  MakeTable(table, number_of_sources);
+        response.values["graph_table"] =  MakeTable(table, number_of_sources);
     }
 
     // FIXME gcc 4.8 doesn't support for lambdas to call protected member functions
