@@ -139,7 +139,7 @@ class TableAPI final : public BaseAPI
                                {
                                    return util::json::Value(util::json::Null());
                                }
-                               return util::json::Value(util::json::Number(duration / 10.));
+                               return util::json::Value(util::json::Number(std::round(duration / 10.)));
                            });
             json_table.values.push_back(std::move(json_row));
         }
@@ -159,7 +159,7 @@ class TableAPI final : public BaseAPI
                                    util::json::Object value;
                                    value.values["from"] = util::json::Value(util::json::Number(weight.start_time_from));
                                    value.values["to"] = util::json::Value(util::json::Number(weight.start_time_to));
-                                   value.values["weight"] = util::json::Value(util::json::Number(weight.additional_weight / 10.));
+                                   value.values["weight"] = util::json::Value(util::json::Number(std::round(weight.additional_weight / 10.)));
                                    return value;
                                });
                 json_row.values.push_back(std::move(json_weights));
