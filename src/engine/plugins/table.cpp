@@ -258,6 +258,9 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
             }
         }
         table_api.AppendResponse(addition_table_result, result);
+    } else { // empty data for math
+        std::vector<std::vector<std::vector<api::TableAPI::AdditionalWeights>>> addition_table_result;
+        table_api.AppendResponse(addition_table_result, result);
     }
     if (params.graph_flag == 1)
         table_api.AppendGraphResponse(result_table.second, snapped_phantoms, result);
