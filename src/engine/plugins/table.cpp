@@ -138,7 +138,7 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
                             snapped_phantoms[our_destinations[index_destination]]);
 
                     // Time cycle
-                    unsigned delta_time = 5 * 60 * 10;
+                    unsigned delta_time = 5 * 60;
                     std::vector<unsigned int> started_time;
                     std::vector<unsigned int> result_time;
                     for (unsigned int time_index = params.time_period_from;
@@ -235,17 +235,17 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
                         // Take first element
                         result_time[0] -= started_time[0];
                         current_result = (api::TableAPI::AdditionalWeights) {started_time[0],
-                                                                             started_time[0] + (delta_time - 60 * 10),
+                                                                             started_time[0] + (delta_time - 1),
                                                                              result_time[0]};
                         for (unsigned i = 1; i < started_time.size(); ++i) {
                             result_time[i] -= started_time[i];
                             if (current_result.additional_weight ==
                                 result_time[i]) { // TODO better to check using correction like r>=w && r<w+correction
-                                current_result.start_time_to = started_time[i] + (delta_time - 60 * 10);
+                                current_result.start_time_to = started_time[i] + (delta_time - 1);
                             } else {
                                 addition_table_result[index_source][index_destination].push_back(current_result);
                                 current_result.start_time_from = started_time[i];
-                                current_result.start_time_to = started_time[i] + (delta_time - 60 * 10);
+                                current_result.start_time_to = started_time[i] + (delta_time - 1);
                                 current_result.additional_weight = result_time[i];
                             }
                         }
