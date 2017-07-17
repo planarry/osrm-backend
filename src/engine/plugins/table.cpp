@@ -205,18 +205,23 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
                                 bool is_addition = false;
                                 if (has_addition_time) {
                                     while ((addition_time_from != addition_time_to)
-                                           && (result_time[i]) > addition_time_from->time_from) {
-                                        is_addition = true;
-                                        if (curr_node && curr_node + 1 != legGeometry.annotations.size())
-                                            result_time[i] += addition_time_from->speed; // actually it is weight
-                                        else
-                                            result_time[i] += addition_time_from->speed
-                                                              * (legGeometry.annotations[curr_node].duration * 10)
-                                                              / (double) (
-                                                    snapped_phantoms[our_sources[index_source]].forward_weight
-                                                    + snapped_phantoms[our_sources[index_source]].reverse_weight);
+                                           && (result_time[i] > addition_time_from->time_from)) {
                                         if ((result_time[i] >= addition_time_from->time_from)
                                             && (result_time[i] <= addition_time_from->time_to)) {
+
+                                            is_addition = true;
+                                            if (curr_node && curr_node + 1 != legGeometry.annotations.size()) {
+                                                if (addition_time_from->speed < legGeometry.annotations[curr_node].duration * 10)
+                                                    result_time[i] += legGeometry.annotations[curr_node].duration * 10; // this shouldn't happen at all
+                                                else
+                                                    result_time[i] += addition_time_from->speed; // actually it is weight
+                                            }
+                                            else
+                                                result_time[i] += addition_time_from->speed
+                                                                  * (legGeometry.annotations[curr_node].duration * 10)
+                                                                  / (double) (snapped_phantoms[our_sources[index_source]].forward_weight
+                                                                              + snapped_phantoms[our_sources[index_source]].reverse_weight);
+
                                             break;
                                         }
                                         addition_time_from++;
@@ -224,7 +229,7 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
                                 }
                                 if (!is_addition)
                                     result_time[i] += (unsigned int) (legGeometry.annotations[curr_node].duration * 10);
-                                if (i && (result_time[i] < result_time[i - 1]))
+                                if (i && (result_time[i] < result_time[i - 1])) // element i can't outdrive i-1
                                     result_time[i] = result_time[i - 1];
                             }
                         }
