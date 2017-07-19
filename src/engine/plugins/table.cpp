@@ -138,7 +138,7 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
                             snapped_phantoms[our_destinations[index_destination]]);
 
                     // Time cycle
-                    unsigned delta_time = 5 * 60;
+                    unsigned delta_time = ((!params.periodicity) ? 5 : params.periodicity) * MINUTE; // periodicity in minutes
                     std::vector<unsigned int> started_time;
                     std::vector<unsigned int> result_time;
                     for (unsigned int time_index = params.time_period_from;
@@ -235,6 +235,8 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
                         }
                     }
 
+                    // correction in seconds
+                    unsigned correction = (!params.correction) ? 10 : params.correction * 10; // result will divide on 10
                     // Convert results to JSON structure
                     if (!part_of_edge_weight) {
                         // Take first element
@@ -244,8 +246,8 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
                                                                              result_time[0]};
                         for (unsigned i = 1; i < started_time.size(); ++i) {
                             result_time[i] -= started_time[i];
-                            if (current_result.additional_weight ==
-                                result_time[i]) { // TODO better to check using correction like r>=w && r<w+correction
+                            if (current_result.additional_weight >= result_time[i] - correction &&
+                                    current_result.additional_weight < result_time[i] + correction) {
                                 current_result.start_time_to = started_time[i] + (delta_time - 1);
                             } else {
                                 addition_table_result[index_source][index_destination].push_back(current_result);

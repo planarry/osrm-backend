@@ -21,6 +21,8 @@
 
 #include <iterator>
 
+#define MINUTE		60
+
 namespace osrm
 {
 namespace engine
