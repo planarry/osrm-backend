@@ -247,7 +247,7 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
                         for (unsigned i = 1; i < started_time.size(); ++i) {
                             result_time[i] -= started_time[i];
                             if (current_result.additional_weight >= result_time[i] - correction &&
-                                    current_result.additional_weight < result_time[i] + correction) {
+                                    current_result.additional_weight <= result_time[i] + correction) {
                                 current_result.start_time_to = started_time[i] + (delta_time - 1);
                             } else {
                                 addition_table_result[index_source][index_destination].push_back(current_result);
