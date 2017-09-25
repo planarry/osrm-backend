@@ -143,7 +143,7 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
                     std::vector<unsigned int> result_time;
                     for (unsigned int time_index = params.time_period_from;
                          time_index < params.time_period_to
-                                      - result_table.first.first[index_source * our_destinations.size() + index_destination];
+                                      - result_table.first.first[index_source * our_destinations.size() + index_destination] / 10;
                          time_index += delta_time) {
                         started_time.push_back(time_index);
                         result_time.push_back(time_index);
