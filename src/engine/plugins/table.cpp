@@ -26,7 +26,7 @@ namespace plugins
 {
 
 TablePlugin::TablePlugin(datafacade::BaseDataFacade &facade, const int max_locations_distance_table)
-    : BasePlugin{facade}, distance_table(&facade, heaps), shortest_path(&facade, heaps),
+    : BasePlugin{facade}, distance_table(&facade, heaps), direct_shortest_path(&facade, heaps),
       max_locations_distance_table(max_locations_distance_table)
 {
 }
@@ -128,7 +128,7 @@ Status TablePlugin::HandleRequest(const api::TableParameters &params, util::json
                                  snapped_phantoms[our_destinations[index_destination]]});
 
                 InternalRouteResult raw_route;
-                shortest_path(nodes, boost::optional<bool>(true), raw_route);
+                direct_shortest_path(nodes, raw_route);
 
                 if (raw_route.is_valid()) {
                     osrm::engine::guidance::LegGeometry legGeometry = osrm::engine::guidance::assembleGeometry(

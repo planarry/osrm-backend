@@ -5,7 +5,7 @@
 
 #include "engine/api/table_parameters.hpp"
 #include "engine/routing_algorithms/many_to_many.hpp"
-#include "engine/routing_algorithms/shortest_path.hpp"
+#include "engine/routing_algorithms/direct_shortest_path.hpp"
 #include "engine/search_engine_data.hpp"
 #include "util/json_container.hpp"
 
@@ -29,7 +29,7 @@ class TablePlugin final : public BasePlugin
   private:
     SearchEngineData heaps;
     routing_algorithms::ManyToManyRouting<datafacade::BaseDataFacade> distance_table;
-    routing_algorithms::ShortestPathRouting<datafacade::BaseDataFacade> shortest_path;
+    routing_algorithms::DirectShortestPathRouting<datafacade::BaseDataFacade> direct_shortest_path;
     int max_locations_distance_table;
 };
 }
